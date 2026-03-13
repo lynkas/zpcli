@@ -29,9 +29,9 @@ COPY --from=builder /app/zpcli /usr/local/bin/zpcli
 # Set the environment variable for the config file
 ENV ZPCLI_CONFIG=/etc/zpcli/sites.json
 
-# Ensure the config directory exists
-RUN mkdir -p /etc/zpcli
+# Expose the SSE port
+EXPOSE 8080
 
-# Default command to run the MCP server
+# Default command to run the MCP server in SSE mode
 ENTRYPOINT ["zpcli"]
-CMD ["mcp"]
+CMD ["mcp", "--port", "8080"]

@@ -3,6 +3,8 @@ version: '3.8'
 services:
   zpcli-mcp:
     build: .
+    ports:
+      - "8080:8080"
     volumes:
       - ./sites.json:/etc/zpcli/sites.json
     environment:
