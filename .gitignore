@@ -30,3 +30,5 @@ help.txt
 test_mcp.go
 detail.json
 search_response.json
+
+local/

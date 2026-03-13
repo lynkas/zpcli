@@ -24,6 +24,14 @@ type StoreData struct {
 }
 
 func getConfigFile() (string, error) {
+	if envPath := os.Getenv("ZPCLI_CONFIG"); envPath != "" {
+		dir := filepath.Dir(envPath)
+		if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+			return "", err
+		}
+		return envPath, nil
+	}
+
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		return "", err
