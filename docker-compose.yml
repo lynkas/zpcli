@@ -6,7 +6,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./sites.json:/etc/zpcli/sites.json
+      - ./data:/etc/zpcli
     environment:
       - ZPCLI_CONFIG=/etc/zpcli/sites.json
     restart: always
