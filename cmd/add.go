@@ -17,36 +17,40 @@ var addCmd = &cobra.Command{
 			cmd.Help()
 			return
 		}
-		s, err := store.Load()
-		if err != nil {
-			fmt.Printf("Error loading store: %v\n", err)
+		if err := AddSite(args...); err != nil {
+			fmt.Printf("Error: %v\n", err)
 			return
 		}
-
-		if len(args) == 1 {
-			domain := args[0]
-			err = s.CreateSeries(domain)
-			if err != nil {
-				fmt.Printf("Error creating series: %v\n", err)
-				return
-			}
-			fmt.Printf("Successfully created new series for domain %s\n", domain)
-		} else {
-			seriesID, err := strconv.Atoi(args[0])
-			if err != nil {
-				fmt.Printf("Invalid series ID: %v\n", err)
-				return
-			}
-			domain := args[1]
-
-			err = s.AddDomainToSeries(seriesID-1, domain)
-			if err != nil {
-				fmt.Printf("Error adding domain to series: %v\n", err)
-				return
-			}
-			fmt.Printf("Successfully added domain %s to series %d\n", domain, seriesID)
-		}
 	},
+}
+
+func AddSite(args ...string) error {
+	s, err := store.Load()
+	if err != nil {
+		return fmt.Errorf("loading store: %v", err)
+	}
+
+	if len(args) == 1 {
+		domain := args[0]
+		err = s.CreateSeries(domain)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Successfully created new series for domain %s\n", domain)
+	} else {
+		seriesID, err := strconv.Atoi(args[0])
+		if err != nil {
+			return fmt.Errorf("invalid series ID: %v", err)
+		}
+		domain := args[1]
+
+		err = s.AddDomainToSeries(seriesID-1, domain)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Successfully added domain %s to series %d\n", domain, seriesID)
+	}
+	return nil
 }
 
 func init() {

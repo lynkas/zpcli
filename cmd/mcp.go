@@ -244,6 +244,38 @@ func handleRequest(w io.Writer, req JSONRPCRequest) {
 						"properties": map[string]interface{}{},
 					},
 				},
+				{
+					Name:        "add_site",
+					Description: "Add a new site domain. Can create a new series or add to existing.",
+					InputSchema: map[string]interface{}{
+						"type": "object",
+						"properties": map[string]interface{}{
+							"domain": map[string]interface{}{
+								"type":        "string",
+								"description": "The domain URL to add",
+							},
+							"series_id": map[string]interface{}{
+								"type":        "string",
+								"description": "Optional series ID to add the domain to. If omitted, creates a new series.",
+							},
+						},
+						"required": []string{"domain"},
+					},
+				},
+				{
+					Name:        "remove_site",
+					Description: "Remove a site or an entire series",
+					InputSchema: map[string]interface{}{
+						"type": "object",
+						"properties": map[string]interface{}{
+							"id": map[string]interface{}{
+								"type":        "string",
+								"description": "The ID to remove (e.g., '1.1' for a domain or '1' for a series)",
+							},
+						},
+						"required": []string{"id"},
+					},
+				},
 			},
 		})
 	case "tools/call":
@@ -286,6 +318,29 @@ func handleToolCall(w io.Writer, req JSONRPCRequest) {
 	case "list_sites":
 		ShowList(&buf)
 		result.Content = append(result.Content, Content{Type: "text", Text: buf.String()})
+	case "add_site":
+		domain, _ := params.Arguments["domain"].(string)
+		seriesID, _ := params.Arguments["series_id"].(string)
+		var err error
+		if seriesID != "" {
+			err = AddSite(seriesID, domain)
+		} else {
+			err = AddSite(domain)
+		}
+		if err != nil {
+			result.IsError = true
+			result.Content = append(result.Content, Content{Type: "text", Text: fmt.Sprintf("Error: %v", err)})
+		} else {
+			result.Content = append(result.Content, Content{Type: "text", Text: "Site added successfully"})
+		}
+	case "remove_site":
+		id, _ := params.Arguments["id"].(string)
+		if err := RemoveSite(id); err != nil {
+			result.IsError = true
+			result.Content = append(result.Content, Content{Type: "text", Text: fmt.Sprintf("Error: %v", err)})
+		} else {
+			result.Content = append(result.Content, Content{Type: "text", Text: "Site removed successfully"})
+		}
 	default:
 		sendError(w, req.ID, -32602, "Unknown tool", nil)
 		return

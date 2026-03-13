@@ -14,32 +14,35 @@ var removeCmd = &cobra.Command{
 	Short: "Remove a series or a single domain",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		s, err := store.Load()
-		if err != nil {
-			fmt.Printf("Error loading store: %v\n", err)
+		if err := RemoveSite(args[0]); err != nil {
+			fmt.Printf("Error: %v\n", err)
 			return
 		}
-
-		id := args[0]
-		if strings.Contains(id, ".") {
-			if err := s.RemoveDomain(id); err != nil {
-				fmt.Printf("Error removing domain: %v\n", err)
-			} else {
-				fmt.Printf("Successfully removed domain %s\n", id)
-			}
-		} else {
-			seriesID, err := strconv.Atoi(id)
-			if err != nil {
-				fmt.Printf("Invalid id format: %v\n", err)
-				return
-			}
-			if err := s.RemoveSeries(seriesID); err != nil {
-				fmt.Printf("Error removing series: %v\n", err)
-			} else {
-				fmt.Printf("Successfully removed series %d\n", seriesID)
-			}
-		}
 	},
+}
+
+func RemoveSite(id string) error {
+	s, err := store.Load()
+	if err != nil {
+		return fmt.Errorf("loading store: %v", err)
+	}
+
+	if strings.Contains(id, ".") {
+		if err := s.RemoveDomain(id); err != nil {
+			return err
+		}
+		fmt.Printf("Successfully removed domain %s\n", id)
+	} else {
+		seriesID, err := strconv.Atoi(id)
+		if err != nil {
+			return fmt.Errorf("invalid id format: %v", err)
+		}
+		if err := s.RemoveSeries(seriesID - 1); err != nil {
+			return err
+		}
+		fmt.Printf("Successfully removed series %d\n", seriesID)
+	}
+	return nil
 }
 
 func init() {
