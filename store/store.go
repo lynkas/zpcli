@@ -54,15 +54,22 @@ func Load() (*StoreData, error) {
 	}
 
 	fileInfo, err := os.Stat(dataFile)
-	if err == nil && fileInfo.IsDir() {
+	if err != nil {
+		if os.IsNotExist(err) {
+			// Ensure file exists even if empty
+			if err := data.Save(); err != nil {
+				return nil, err
+			}
+			return data, nil
+		}
+		return nil, err
+	}
+
+	if fileInfo.IsDir() {
 		return nil, fmt.Errorf("config path %s is a directory, not a file. Please check your volume mounts", dataFile)
 	}
 
-	if os.IsNotExist(err) || fileInfo.Size() == 0 {
-		// Ensure file exists even if empty
-		if err := data.Save(); err != nil {
-			return nil, err
-		}
+	if fileInfo.Size() == 0 {
 		return data, nil
 	}
 
