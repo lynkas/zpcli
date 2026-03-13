@@ -296,6 +296,9 @@ func handleToolCall(w io.Writer, req JSONRPCRequest) {
 		sendError(w, req.ID, -32602, "Invalid params", nil)
 		return
 	}
+	if params.Arguments == nil {
+		params.Arguments = make(map[string]interface{})
+	}
 
 	var result ToolCallResult
 	var buf bytes.Buffer
