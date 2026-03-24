@@ -96,6 +96,11 @@ Acceptance criteria:
 Objective:
 Move business logic out of `cmd/` into a shared service layer.
 
+Progress notes:
+
+- 2026-03-23: extracted shared search, detail, and site-management services
+- 2026-03-23: added reusable CLI/MCP text rendering helpers so MCP no longer depends on command handlers for search and detail
+
 Tasks:
 
 - Create internal packages for domain models and services.
@@ -131,6 +136,11 @@ Acceptance criteria:
 
 Objective:
 Turn MCP from a convenience feature into a supported product interface for OpenClaw.
+
+Progress notes:
+
+- 2026-03-23: added stable MCP tool aliases for search and detail
+- 2026-03-23: added `validate_sites` and `health_check` MCP tools
 
 Tasks:
 
@@ -211,6 +221,10 @@ Acceptance criteria:
 
 Objective:
 Make the project diagnosable and manageable in real use.
+
+Progress notes:
+
+- 2026-03-23: added CLI `health` and `validate` commands backed by a shared health service
 
 Tasks:
 

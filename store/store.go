@@ -43,6 +43,10 @@ func getConfigFile() (string, error) {
 	return filepath.Join(appDir, "sites.json"), nil
 }
 
+func ConfigFilePath() (string, error) {
+	return getConfigFile()
+}
+
 func Load() (*StoreData, error) {
 	data := &StoreData{
 		Series: make([]*Series, 0),

@@ -74,6 +74,77 @@ type Content struct {
 	Text string `json:"text"`
 }
 
+func searchToolSchema() map[string]interface{} {
+	return map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"keyword": map[string]interface{}{
+				"type":        "string",
+				"description": "The keyword to search for",
+			},
+		},
+		"required": []string{"keyword"},
+	}
+}
+
+func detailToolSchema() map[string]interface{} {
+	return map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"site_id": map[string]interface{}{
+				"type":        "string",
+				"description": "The site ID (e.g. 2.1)",
+			},
+			"vod_id": map[string]interface{}{
+				"type":        "string",
+				"description": "The video ID",
+			},
+			"episode": map[string]interface{}{
+				"type":        "string",
+				"description": "Optional specific episode to get link for",
+			},
+		},
+		"required": []string{"site_id", "vod_id"},
+	}
+}
+
+func listSitesToolSchema() map[string]interface{} {
+	return map[string]interface{}{
+		"type":       "object",
+		"properties": map[string]interface{}{},
+	}
+}
+
+func addSiteToolSchema() map[string]interface{} {
+	return map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"domain": map[string]interface{}{
+				"type":        "string",
+				"description": "The domain URL to add",
+			},
+			"series_id": map[string]interface{}{
+				"type":        "string",
+				"description": "Optional series ID to add the domain to. If omitted, creates a new series.",
+			},
+		},
+		"required": []string{"domain"},
+	}
+}
+
+func removeSiteToolSchema() map[string]interface{} {
+	return map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"id": map[string]interface{}{
+				"type":        "string",
+				"description": "The ID to remove (e.g., '1.1' for a domain or '1' for a series)",
+			},
+		},
+		"required": []string{"id"},
+	}
+}
+
 var mcpCmd = &cobra.Command{
 	Use:   "mcp",
 	Short: "Start the MCP server to provide video CMS tools to LLMs",
@@ -206,78 +277,47 @@ func handleRequest(w io.Writer, req JSONRPCRequest) {
 				{
 					Name:        "search",
 					Description: "Search for videos across configured sites",
-					InputSchema: map[string]interface{}{
-						"type": "object",
-						"properties": map[string]interface{}{
-							"keyword": map[string]interface{}{
-								"type":        "string",
-								"description": "The keyword to search for",
-							},
-						},
-						"required": []string{"keyword"},
-					},
+					InputSchema: searchToolSchema(),
+				},
+				{
+					Name:        "search_videos",
+					Description: "Stable alias for searching videos across configured sites",
+					InputSchema: searchToolSchema(),
 				},
 				{
 					Name:        "get_detail",
 					Description: "Get details of a specific video",
-					InputSchema: map[string]interface{}{
-						"type": "object",
-						"properties": map[string]interface{}{
-							"site_id": map[string]interface{}{
-								"type":        "string",
-								"description": "The site ID (e.g. 2.1)",
-							},
-							"vod_id": map[string]interface{}{
-								"type":        "string",
-								"description": "The video ID",
-							},
-							"episode": map[string]interface{}{
-								"type":        "string",
-								"description": "Optional specific episode to get link for",
-							},
-						},
-						"required": []string{"site_id", "vod_id"},
-					},
+					InputSchema: detailToolSchema(),
+				},
+				{
+					Name:        "get_video_detail",
+					Description: "Stable alias for getting details of a specific video",
+					InputSchema: detailToolSchema(),
 				},
 				{
 					Name:        "list_sites",
 					Description: "List all configured sites and their IDs",
-					InputSchema: map[string]interface{}{
-						"type":       "object",
-						"properties": map[string]interface{}{},
-					},
+					InputSchema: listSitesToolSchema(),
 				},
 				{
 					Name:        "add_site",
 					Description: "Add a new site domain. Can create a new series or add to existing.",
-					InputSchema: map[string]interface{}{
-						"type": "object",
-						"properties": map[string]interface{}{
-							"domain": map[string]interface{}{
-								"type":        "string",
-								"description": "The domain URL to add",
-							},
-							"series_id": map[string]interface{}{
-								"type":        "string",
-								"description": "Optional series ID to add the domain to. If omitted, creates a new series.",
-							},
-						},
-						"required": []string{"domain"},
-					},
+					InputSchema: addSiteToolSchema(),
 				},
 				{
 					Name:        "remove_site",
 					Description: "Remove a site or an entire series",
-					InputSchema: map[string]interface{}{
-						"type": "object",
-						"properties": map[string]interface{}{
-							"id": map[string]interface{}{
-								"type":        "string",
-								"description": "The ID to remove (e.g., '1.1' for a domain or '1' for a series)",
-							},
-						},
-						"required": []string{"id"},
-					},
+					InputSchema: removeSiteToolSchema(),
+				},
+				{
+					Name:        "validate_sites",
+					Description: "Validate the configured sites and report configuration issues",
+					InputSchema: listSitesToolSchema(),
+				},
+				{
+					Name:        "health_check",
+					Description: "Return a health summary for the current configuration",
+					InputSchema: listSitesToolSchema(),
 				},
 			},
 		})
@@ -308,7 +348,7 @@ func handleToolCall(w io.Writer, req JSONRPCRequest) {
 	siteService := service.NewSiteService()
 
 	switch params.Name {
-	case "search":
+	case "search", "search_videos":
 		keyword, _ := params.Arguments["keyword"].(string)
 		data, err := store.Load()
 		if err != nil {
@@ -339,7 +379,7 @@ func handleToolCall(w io.Writer, req JSONRPCRequest) {
 		}
 		writeSearchResults(&buf, data, searchResults, "time")
 		result.Content = append(result.Content, Content{Type: "text", Text: buf.String()})
-	case "get_detail":
+	case "get_detail", "get_video_detail":
 		data, err := store.Load()
 		if err != nil {
 			result.IsError = true
@@ -429,6 +469,61 @@ func handleToolCall(w io.Writer, req JSONRPCRequest) {
 		} else {
 			result.Content = append(result.Content, Content{Type: "text", Text: message})
 		}
+	case "validate_sites":
+		data, err := store.Load()
+		if err != nil {
+			result.IsError = true
+			result.Content = append(result.Content, Content{Type: "text", Text: fmt.Sprintf("Error loading store: %v", err)})
+			break
+		}
+		healthService := service.NewHealthService()
+		issues := healthService.ValidateStore(data)
+		if len(issues) == 0 {
+			result.Content = append(result.Content, Content{Type: "text", Text: "Configuration is valid."})
+			break
+		}
+		fmt.Fprintf(&buf, "Found %d issue(s):\n", len(issues))
+		for _, issue := range issues {
+			label := issue.Scope
+			if issue.SiteID != "" {
+				label = fmt.Sprintf("%s %s", issue.Scope, issue.SiteID)
+			}
+			fmt.Fprintf(&buf, "  [%s] %s: %s\n", issue.Level, label, issue.Message)
+		}
+		result.Content = append(result.Content, Content{Type: "text", Text: buf.String()})
+	case "health_check":
+		data, err := store.Load()
+		if err != nil {
+			result.IsError = true
+			result.Content = append(result.Content, Content{Type: "text", Text: fmt.Sprintf("Error loading store: %v", err)})
+			break
+		}
+		healthService := service.NewHealthService()
+		report, err := healthService.BuildHealthReport(data)
+		if err != nil {
+			result.IsError = true
+			result.Content = append(result.Content, Content{Type: "text", Text: fmt.Sprintf("Error building health report: %v", err)})
+			break
+		}
+		fmt.Fprintf(&buf, "Config:   %s\n", report.ConfigPath)
+		fmt.Fprintf(&buf, "Version:  %d\n", report.Version)
+		fmt.Fprintf(&buf, "Series:   %d\n", report.SeriesCount)
+		fmt.Fprintf(&buf, "Domains:  %d\n", report.DomainCount)
+		fmt.Fprintf(&buf, "Errors:   %d\n", report.InvalidCount)
+		fmt.Fprintf(&buf, "Warnings: %d\n", report.WarningCount)
+		if len(report.Issues) == 0 {
+			fmt.Fprintf(&buf, "\nStatus: healthy\n")
+		} else {
+			fmt.Fprintf(&buf, "\nIssues:\n")
+			for _, issue := range report.Issues {
+				label := issue.Scope
+				if issue.SiteID != "" {
+					label = fmt.Sprintf("%s %s", issue.Scope, issue.SiteID)
+				}
+				fmt.Fprintf(&buf, "  [%s] %s: %s\n", issue.Level, label, issue.Message)
+			}
+		}
+		result.Content = append(result.Content, Content{Type: "text", Text: buf.String()})
 	default:
 		sendError(w, req.ID, -32602, "Unknown tool", nil)
 		return
