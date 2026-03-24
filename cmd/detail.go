@@ -1,44 +1,15 @@
 package cmd
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"html"
 	"io"
-	"net/http"
 	"os"
-	"strconv"
-	"strings"
-	"time"
+	"zpcli/internal/service"
 	"zpcli/store"
 
 	"github.com/spf13/cobra"
 )
-
-type DetailResponse struct {
-	List []struct {
-		VodName        string `json:"vod_name"`
-		VodSub         string `json:"vod_sub"`
-		TypeName       string `json:"type_name"`
-		VodTag         string `json:"vod_tag"`
-		VodClass       string `json:"vod_class"`
-		VodActor       string `json:"vod_actor"`
-		VodDirector    string `json:"vod_director"`
-		VodArea        string `json:"vod_area"`
-		VodLang        string `json:"vod_lang"`
-		VodYear        string `json:"vod_year"`
-		VodHits        int    `json:"vod_hits"`
-		VodScore       string `json:"vod_score"`
-		VodDoubanScore string `json:"vod_douban_score"`
-		VodTime        string `json:"vod_time"`
-		VodPubDate     string `json:"vod_pubdate"`
-		VodTotal       int    `json:"vod_total"`
-		VodContent     string `json:"vod_content"`
-		VodPlayURL     string `json:"vod_play_url"`
-		VodPlayFrom    string `json:"vod_play_from"`
-		VodRemarks     string `json:"vod_remarks"`
-	} `json:"list"`
-}
 
 var detailCmd = &cobra.Command{
 	Use:     "detail [siteId] [vodId]",
@@ -58,58 +29,32 @@ func ShowDetail(w io.Writer, showAll bool, args ...string) {
 		targetEp = args[2]
 	}
 
-	sIdx, dIdx, err := parseDomainID(siteIDStr)
-	if err != nil {
-		fmt.Fprintf(w, "Error parsing siteId: %v\n", err)
-		return
-	}
-
 	s, err := store.Load()
 	if err != nil {
 		fmt.Fprintf(w, "Error loading store: %v\n", err)
 		return
 	}
 
-	if sIdx < 0 || sIdx >= len(s.Series) || dIdx < 0 || dIdx >= len(s.Series[sIdx].Domains) {
-		fmt.Fprintf(w, "Invalid siteId: %s\n", siteIDStr)
-		return
-	}
-
-	domain := s.Series[sIdx].Domains[dIdx]
-	baseEndpoint := buildEndpointURL(domain.URL)
-	reqURL := fmt.Sprintf("%s?ac=detail&ids=%s", baseEndpoint, vodIDStr)
-
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Get(reqURL)
+	detailService := service.NewDetailService(nil)
+	result, err := detailService.GetDetail(context.Background(), s, siteIDStr, vodIDStr)
 	if err != nil {
 		fmt.Fprintf(w, "Error fetching detail: %v\n", err)
-		domain.FailureScore++
-		s.Save()
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		fmt.Fprintf(w, "Error fetching detail: HTTP %d\n", resp.StatusCode)
-		domain.FailureScore++
-		s.Save()
 		return
 	}
 
-	var detailResp DetailResponse
-	if err := json.NewDecoder(resp.Body).Decode(&detailResp); err != nil {
-		fmt.Fprintf(w, "Error decoding response: %v\n", err)
-		domain.FailureScore++
+	if result.Err != nil {
+		fmt.Fprintf(w, "Error fetching detail: %v\n", result.Err)
+		s.Series[result.SeriesIndex].Domains[result.DomainIndex].FailureScore++
 		s.Save()
 		return
 	}
 
-	if len(detailResp.List) == 0 {
+	if result.Item == nil {
 		fmt.Fprintln(w, "No detail found.")
 		return
 	}
 
-	v := detailResp.List[0]
+	v := result.Item
 
 	if targetEp == "" {
 		fmt.Fprintf(w, "Name:    %s\n", v.VodName)
@@ -132,96 +77,26 @@ func ShowDetail(w io.Writer, showAll bool, args ...string) {
 			fmt.Fprintf(w, "Time:    %s\n", v.VodTime)
 			fmt.Fprintf(w, "Remarks: %s\n", v.VodRemarks)
 		}
-		fmt.Fprintf(w, "\nContent:\n%s\n", stripHTML(v.VodContent))
+		fmt.Fprintf(w, "\nContent:\n%s\n", v.VodContent)
 
 		fmt.Fprintf(w, "\nPlay URLs:\n")
 	}
 
-	players := strings.Split(v.VodPlayFrom, "$$$")
-	groups := strings.Split(v.VodPlayURL, "$$$")
-
-	for i, group := range groups {
-		playerName := fmt.Sprintf("Player %d", i+1)
-		if i < len(players) {
-			playerName = players[i]
-		}
-		if targetEp == "" {
-			fmt.Fprintf(w, "\n[%s]\n", playerName)
-		}
-
-		episodes := strings.Split(group, "#")
-		for j, ep := range episodes {
-			parts := strings.Split(ep, "$")
-			name := ep
-			u := ep
-			if len(parts) == 2 {
-				name = parts[0]
-				u = parts[1]
-			}
-
-			// If target episode specified, check if it matches name or index (1-based)
-			if targetEp != "" {
-				idxStr := strconv.Itoa(j + 1)
-				if targetEp == idxStr || strings.Contains(name, targetEp) {
-					fmt.Fprintln(w, u)
-					return
-				}
-				continue
-			}
-
-			// Detail view
-			fmt.Fprintf(w, "  %s: %s\n", name, u)
-		}
-	}
-
 	if targetEp != "" {
+		if episodeURL, ok := service.FindEpisodeURL(v, targetEp); ok {
+			fmt.Fprintln(w, episodeURL)
+			return
+		}
 		fmt.Fprintf(w, "Episode %s not found.\n", targetEp)
+		return
 	}
-}
 
-func stripHTML(s string) string {
-	s = html.UnescapeString(s)
-	r := strings.NewReplacer(
-		"<p>", "",
-		"</p>", "\n",
-		"<br>", "\n",
-		"<br/>", "\n",
-		"<br />", "\n",
-	)
-	s = r.Replace(s)
-	// Simple regex-less tag removal
-	var result strings.Builder
-	inTag := false
-	for _, r := range s {
-		if r == '<' {
-			inTag = true
-			continue
-		}
-		if r == '>' {
-			inTag = false
-			continue
-		}
-		if !inTag {
-			result.WriteRune(r)
+	for _, player := range v.Players {
+		fmt.Fprintf(w, "\n[%s]\n", player.Name)
+		for _, episode := range player.Episodes {
+			fmt.Fprintf(w, "  %s: %s\n", episode.Name, episode.URL)
 		}
 	}
-	return strings.TrimSpace(result.String())
-}
-
-func parseDomainID(id string) (int, int, error) {
-	parts := strings.Split(id, ".")
-	if len(parts) != 2 {
-		return 0, 0, fmt.Errorf("invalid siteId format (expected x.y)")
-	}
-	sIdx, err := strconv.Atoi(parts[0])
-	if err != nil {
-		return 0, 0, err
-	}
-	dIdx, err := strconv.Atoi(parts[1])
-	if err != nil {
-		return 0, 0, err
-	}
-	return sIdx - 1, dIdx - 1, nil
 }
 
 func init() {
