@@ -310,7 +310,34 @@ func handleToolCall(w io.Writer, req JSONRPCRequest) {
 	switch params.Name {
 	case "search":
 		keyword, _ := params.Arguments["keyword"].(string)
-		ShowSearch(&buf, keyword, 3, 1, "time")
+		data, err := store.Load()
+		if err != nil {
+			result.IsError = true
+			result.Content = append(result.Content, Content{Type: "text", Text: fmt.Sprintf("Error loading store: %v", err)})
+			break
+		}
+		searchService := service.NewSearchService(nil)
+		searchResults, err := searchService.Search(context.Background(), data, keyword, 3, 1)
+		if err != nil {
+			result.IsError = true
+			result.Content = append(result.Content, Content{Type: "text", Text: fmt.Sprintf("Error: %v", err)})
+			break
+		}
+		if len(searchResults) == 0 {
+			result.Content = append(result.Content, Content{Type: "text", Text: "No valid domains to search.\n"})
+			break
+		}
+		hasFailures := false
+		for _, searchResult := range searchResults {
+			if searchResult.Err != nil {
+				data.Series[searchResult.SeriesIndex].Domains[searchResult.DomainIndex].FailureScore++
+				hasFailures = true
+			}
+		}
+		if hasFailures {
+			data.Save()
+		}
+		writeSearchResults(&buf, data, searchResults, "time")
 		result.Content = append(result.Content, Content{Type: "text", Text: buf.String()})
 	case "get_detail":
 		data, err := store.Load()
@@ -330,6 +357,8 @@ func handleToolCall(w io.Writer, req JSONRPCRequest) {
 			break
 		}
 		if detailResult.Err != nil {
+			data.Series[detailResult.SeriesIndex].Domains[detailResult.DomainIndex].FailureScore++
+			data.Save()
 			result.IsError = true
 			result.Content = append(result.Content, Content{Type: "text", Text: fmt.Sprintf("Error: %v", detailResult.Err)})
 			break
@@ -339,14 +368,11 @@ func handleToolCall(w io.Writer, req JSONRPCRequest) {
 			break
 		}
 		if episode != "" {
-			if episodeURL, ok := service.FindEpisodeURL(detailResult.Item, episode); ok {
-				result.Content = append(result.Content, Content{Type: "text", Text: episodeURL})
-			} else {
-				result.Content = append(result.Content, Content{Type: "text", Text: fmt.Sprintf("Episode %s not found.", episode)})
-			}
+			writeEpisodeMatch(&buf, detailResult.Item, episode)
+			result.Content = append(result.Content, Content{Type: "text", Text: buf.String()})
 			break
 		}
-		ShowDetail(&buf, true, siteID, vodID)
+		writeDetailResult(&buf, detailResult.Item, true)
 		result.Content = append(result.Content, Content{Type: "text", Text: buf.String()})
 	case "list_sites":
 		data, err := store.Load()

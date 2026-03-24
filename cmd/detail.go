@@ -56,47 +56,11 @@ func ShowDetail(w io.Writer, showAll bool, args ...string) {
 
 	v := result.Item
 
-	if targetEp == "" {
-		fmt.Fprintf(w, "Name:    %s\n", v.VodName)
-		if v.VodSub != "" {
-			fmt.Fprintf(w, "Sub:     %s\n", v.VodSub)
-		}
-		if showAll {
-			fmt.Fprintf(w, "Type:    %s\n", v.TypeName)
-			fmt.Fprintf(w, "Tag:     %s\n", v.VodTag)
-			fmt.Fprintf(w, "Class:   %s\n", v.VodClass)
-			fmt.Fprintf(w, "Actor:   %s\n", v.VodActor)
-			fmt.Fprintf(w, "Director:%s\n", v.VodDirector)
-			fmt.Fprintf(w, "Area:    %s\n", v.VodArea)
-			fmt.Fprintf(w, "Lang:    %s\n", v.VodLang)
-			fmt.Fprintf(w, "Year:    %s\n", v.VodYear)
-			fmt.Fprintf(w, "PubDate: %s\n", v.VodPubDate)
-			fmt.Fprintf(w, "Total:   %d\n", v.VodTotal)
-			fmt.Fprintf(w, "Hits:    %d\n", v.VodHits)
-			fmt.Fprintf(w, "Score:   %s (Douban: %s)\n", v.VodScore, v.VodDoubanScore)
-			fmt.Fprintf(w, "Time:    %s\n", v.VodTime)
-			fmt.Fprintf(w, "Remarks: %s\n", v.VodRemarks)
-		}
-		fmt.Fprintf(w, "\nContent:\n%s\n", v.VodContent)
-
-		fmt.Fprintf(w, "\nPlay URLs:\n")
-	}
-
 	if targetEp != "" {
-		if episodeURL, ok := service.FindEpisodeURL(v, targetEp); ok {
-			fmt.Fprintln(w, episodeURL)
-			return
-		}
-		fmt.Fprintf(w, "Episode %s not found.\n", targetEp)
+		writeEpisodeMatch(w, v, targetEp)
 		return
 	}
-
-	for _, player := range v.Players {
-		fmt.Fprintf(w, "\n[%s]\n", player.Name)
-		for _, episode := range player.Episodes {
-			fmt.Fprintf(w, "  %s: %s\n", episode.Name, episode.URL)
-		}
-	}
+	writeDetailResult(w, v, showAll)
 }
 
 func init() {
