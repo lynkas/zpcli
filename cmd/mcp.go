@@ -3,6 +3,7 @@ package cmd
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +11,8 @@ import (
 	"os"
 	"sync"
 	"time"
+	"zpcli/internal/service"
+	"zpcli/store"
 
 	"github.com/spf13/cobra"
 )
@@ -302,6 +305,7 @@ func handleToolCall(w io.Writer, req JSONRPCRequest) {
 
 	var result ToolCallResult
 	var buf bytes.Buffer
+	siteService := service.NewSiteService()
 
 	switch params.Name {
 	case "search":
@@ -309,40 +313,95 @@ func handleToolCall(w io.Writer, req JSONRPCRequest) {
 		ShowSearch(&buf, keyword, 3, 1, "time")
 		result.Content = append(result.Content, Content{Type: "text", Text: buf.String()})
 	case "get_detail":
+		data, err := store.Load()
+		if err != nil {
+			result.IsError = true
+			result.Content = append(result.Content, Content{Type: "text", Text: fmt.Sprintf("Error loading store: %v", err)})
+			break
+		}
 		siteID, _ := params.Arguments["site_id"].(string)
 		vodID, _ := params.Arguments["vod_id"].(string)
 		episode, _ := params.Arguments["episode"].(string)
-		if episode != "" {
-			ShowDetail(&buf, true, siteID, vodID, episode)
-		} else {
-			ShowDetail(&buf, true, siteID, vodID)
+		detailService := service.NewDetailService(nil)
+		detailResult, err := detailService.GetDetail(context.Background(), data, siteID, vodID)
+		if err != nil {
+			result.IsError = true
+			result.Content = append(result.Content, Content{Type: "text", Text: fmt.Sprintf("Error: %v", err)})
+			break
 		}
+		if detailResult.Err != nil {
+			result.IsError = true
+			result.Content = append(result.Content, Content{Type: "text", Text: fmt.Sprintf("Error: %v", detailResult.Err)})
+			break
+		}
+		if detailResult.Item == nil {
+			result.Content = append(result.Content, Content{Type: "text", Text: "No detail found.\n"})
+			break
+		}
+		if episode != "" {
+			if episodeURL, ok := service.FindEpisodeURL(detailResult.Item, episode); ok {
+				result.Content = append(result.Content, Content{Type: "text", Text: episodeURL})
+			} else {
+				result.Content = append(result.Content, Content{Type: "text", Text: fmt.Sprintf("Episode %s not found.", episode)})
+			}
+			break
+		}
+		ShowDetail(&buf, true, siteID, vodID)
 		result.Content = append(result.Content, Content{Type: "text", Text: buf.String()})
 	case "list_sites":
-		ShowList(&buf)
+		data, err := store.Load()
+		if err != nil {
+			result.IsError = true
+			result.Content = append(result.Content, Content{Type: "text", Text: fmt.Sprintf("Error loading store: %v", err)})
+			break
+		}
+		seriesList := siteService.ListSites(data)
+		if len(seriesList) == 0 {
+			result.Content = append(result.Content, Content{Type: "text", Text: "No series configured.\n"})
+			break
+		}
+		for _, series := range seriesList {
+			fmt.Fprintf(&buf, "Series %d:\n", series.SeriesID)
+			for _, dom := range series.Domains {
+				fmt.Fprintf(&buf, "  [%d.%d] URL: %s [Failures: %d]\n", dom.SeriesID, dom.DomainID, dom.URL, dom.FailureScore)
+			}
+		}
 		result.Content = append(result.Content, Content{Type: "text", Text: buf.String()})
 	case "add_site":
+		data, err := store.Load()
+		if err != nil {
+			result.IsError = true
+			result.Content = append(result.Content, Content{Type: "text", Text: fmt.Sprintf("Error loading store: %v", err)})
+			break
+		}
 		domain, _ := params.Arguments["domain"].(string)
 		seriesID, _ := params.Arguments["series_id"].(string)
-		var err error
+		var message string
 		if seriesID != "" {
-			err = AddSite(seriesID, domain)
+			message, err = siteService.AddSite(data, seriesID, domain)
 		} else {
-			err = AddSite(domain)
+			message, err = siteService.AddSite(data, domain)
 		}
 		if err != nil {
 			result.IsError = true
 			result.Content = append(result.Content, Content{Type: "text", Text: fmt.Sprintf("Error: %v", err)})
 		} else {
-			result.Content = append(result.Content, Content{Type: "text", Text: "Site added successfully"})
+			result.Content = append(result.Content, Content{Type: "text", Text: message})
 		}
 	case "remove_site":
+		data, err := store.Load()
+		if err != nil {
+			result.IsError = true
+			result.Content = append(result.Content, Content{Type: "text", Text: fmt.Sprintf("Error loading store: %v", err)})
+			break
+		}
 		id, _ := params.Arguments["id"].(string)
-		if err := RemoveSite(id); err != nil {
+		message, err := siteService.RemoveSite(data, id)
+		if err != nil {
 			result.IsError = true
 			result.Content = append(result.Content, Content{Type: "text", Text: fmt.Sprintf("Error: %v", err)})
 		} else {
-			result.Content = append(result.Content, Content{Type: "text", Text: "Site removed successfully"})
+			result.Content = append(result.Content, Content{Type: "text", Text: message})
 		}
 	default:
 		sendError(w, req.ID, -32602, "Unknown tool", nil)

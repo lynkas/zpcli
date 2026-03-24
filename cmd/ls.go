@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"zpcli/internal/service"
 	"zpcli/store"
 
 	"github.com/spf13/cobra"
@@ -29,13 +30,12 @@ func ShowList(w io.Writer) {
 		return
 	}
 
-	for i, series := range s.Series {
-		seriesId := i + 1
-		fmt.Fprintf(w, "Series %d:\n", seriesId)
-
-		for j, dom := range series.Domains {
-			domainId := fmt.Sprintf("%d.%d", seriesId, j+1)
-			fmt.Fprintf(w, "  [%s] URL: %s [Failures: %d]\n", domainId, dom.URL, dom.FailureScore)
+	siteService := service.NewSiteService()
+	for _, series := range siteService.ListSites(s) {
+		fmt.Fprintf(w, "Series %d:\n", series.SeriesID)
+		for _, dom := range series.Domains {
+			domainID := fmt.Sprintf("%d.%d", dom.SeriesID, dom.DomainID)
+			fmt.Fprintf(w, "  [%s] URL: %s [Failures: %d]\n", domainID, dom.URL, dom.FailureScore)
 		}
 	}
 }

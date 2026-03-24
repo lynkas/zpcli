@@ -2,8 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
+	"zpcli/internal/service"
 	"zpcli/store"
 
 	"github.com/spf13/cobra"
@@ -27,21 +26,12 @@ func RemoveSite(id string) error {
 		return fmt.Errorf("loading store: %v", err)
 	}
 
-	if strings.Contains(id, ".") {
-		if err := s.RemoveDomain(id); err != nil {
-			return err
-		}
-		fmt.Printf("Successfully removed domain %s\n", id)
-	} else {
-		seriesID, err := strconv.Atoi(id)
-		if err != nil {
-			return fmt.Errorf("invalid id format: %v", err)
-		}
-		if err := s.RemoveSeries(seriesID - 1); err != nil {
-			return err
-		}
-		fmt.Printf("Successfully removed series %d\n", seriesID)
+	siteService := service.NewSiteService()
+	message, err := siteService.RemoveSite(s, id)
+	if err != nil {
+		return err
 	}
+	fmt.Println(message)
 	return nil
 }
 
