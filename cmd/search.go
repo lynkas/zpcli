@@ -62,6 +62,10 @@ var searchCmd = &cobra.Command{
 func ShowSearch(w io.Writer, keyword string, seriesCount int, page int, sortBy string) {
 	s, err := store.Load()
 	if err != nil {
+		if outputJSON {
+			writeCommandError(w, fmt.Sprintf("Error loading store: %v", err))
+			return
+		}
 		fmt.Fprintf(w, "Error loading store: %v\n", err)
 		return
 	}
@@ -69,11 +73,23 @@ func ShowSearch(w io.Writer, keyword string, seriesCount int, page int, sortBy s
 	searchService := service.NewSearchService(nil)
 	results, err := searchService.Search(context.Background(), s, keyword, seriesCount, page)
 	if err != nil {
+		if outputJSON {
+			writeCommandError(w, fmt.Sprintf("Error searching sites: %v", err))
+			return
+		}
 		fmt.Fprintf(w, "Error searching sites: %v\n", err)
 		return
 	}
 
 	if len(results) == 0 {
+		if outputJSON {
+			writeJSON(w, map[string]interface{}{
+				"status":  "ok",
+				"message": "No valid domains to search.",
+				"results": []interface{}{},
+			})
+			return
+		}
 		fmt.Fprintln(w, "No valid domains to search.")
 		return
 	}
@@ -87,6 +103,16 @@ func ShowSearch(w io.Writer, keyword string, seriesCount int, page int, sortBy s
 	}
 	if hasFailures {
 		s.Save()
+	}
+	if outputJSON {
+		writeJSON(w, map[string]interface{}{
+			"status":  "ok",
+			"keyword": keyword,
+			"page":    page,
+			"sort_by": sortBy,
+			"results": results,
+		})
+		return
 	}
 	writeSearchResults(w, s, results, sortBy)
 }

@@ -20,6 +20,10 @@ var healthCmd = &cobra.Command{
 func showHealth() {
 	data, err := store.Load()
 	if err != nil {
+		if outputJSON {
+			writeCommandError(os.Stdout, fmt.Sprintf("Error loading store: %v", err))
+			return
+		}
 		fmt.Printf("Error loading store: %v\n", err)
 		return
 	}
@@ -27,7 +31,16 @@ func showHealth() {
 	healthService := service.NewHealthService()
 	report, err := healthService.BuildHealthReport(data)
 	if err != nil {
+		if outputJSON {
+			writeCommandError(os.Stdout, fmt.Sprintf("Error building health report: %v", err))
+			return
+		}
 		fmt.Printf("Error building health report: %v\n", err)
+		return
+	}
+
+	if outputJSON {
+		writeJSON(os.Stdout, report)
 		return
 	}
 

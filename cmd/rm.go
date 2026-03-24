@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"zpcli/internal/service"
 	"zpcli/store"
 
@@ -14,6 +15,10 @@ var removeCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		if err := RemoveSite(args[0]); err != nil {
+			if outputJSON {
+				writeCommandError(os.Stdout, fmt.Sprintf("Error: %v", err))
+				return
+			}
 			fmt.Printf("Error: %v\n", err)
 			return
 		}
@@ -30,6 +35,10 @@ func RemoveSite(id string) error {
 	message, err := siteService.RemoveSite(s, id)
 	if err != nil {
 		return err
+	}
+	if outputJSON {
+		writeJSON(os.Stdout, commandStatus{Status: "ok", Message: message})
+		return nil
 	}
 	fmt.Println(message)
 	return nil

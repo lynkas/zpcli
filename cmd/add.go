@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"zpcli/internal/service"
 	"zpcli/store"
 
@@ -18,6 +19,10 @@ var addCmd = &cobra.Command{
 			return
 		}
 		if err := AddSite(args...); err != nil {
+			if outputJSON {
+				writeCommandError(os.Stdout, fmt.Sprintf("Error: %v", err))
+				return
+			}
 			fmt.Printf("Error: %v\n", err)
 			return
 		}
@@ -34,6 +39,10 @@ func AddSite(args ...string) error {
 	message, err := siteService.AddSite(s, args...)
 	if err != nil {
 		return err
+	}
+	if outputJSON {
+		writeJSON(os.Stdout, commandStatus{Status: "ok", Message: message})
+		return nil
 	}
 	fmt.Println(message)
 	return nil

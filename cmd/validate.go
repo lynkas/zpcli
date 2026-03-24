@@ -20,12 +20,23 @@ var validateCmd = &cobra.Command{
 func runValidate() {
 	data, err := store.Load()
 	if err != nil {
+		if outputJSON {
+			writeCommandError(os.Stdout, fmt.Sprintf("Error loading store: %v", err))
+			return
+		}
 		fmt.Printf("Error loading store: %v\n", err)
 		return
 	}
 
 	healthService := service.NewHealthService()
 	issues := healthService.ValidateStore(data)
+	if outputJSON {
+		writeJSON(os.Stdout, map[string]interface{}{
+			"status": "ok",
+			"issues": issues,
+		})
+		return
+	}
 	if len(issues) == 0 {
 		fmt.Println("Configuration is valid.")
 		return

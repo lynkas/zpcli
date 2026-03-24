@@ -10,6 +10,7 @@ import (
 
 var (
 	detailShowAll bool
+	outputJSON    bool
 )
 
 func Execute() {
@@ -38,4 +39,5 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&detailShowAll, "all", "a", false, "Show all provided information")
+	rootCmd.PersistentFlags().BoolVar(&outputJSON, "json", false, "Output machine-readable JSON")
 }
