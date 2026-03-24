@@ -1,15 +1,13 @@
 package cmd
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
 	"io"
-	"net/http"
-	"net/url"
 	"sort"
 	"strings"
-	"sync"
 	"time"
+	"zpcli/internal/service"
 	"zpcli/store"
 
 	"os"
@@ -23,16 +21,6 @@ var (
 	searchPage        int
 	searchSortBy      string
 )
-
-type SearchResponse struct {
-	List []struct {
-		VodID      int    `json:"vod_id"`
-		VodName    string `json:"vod_name"`
-		TypeName   string `json:"type_name"`
-		VodTime    string `json:"vod_time"`
-		VodRemarks string `json:"vod_remarks"`
-	} `json:"list"`
-}
 
 func formatRelativeTime(vodTime string) string {
 	t, err := time.Parse("2006-01-02 15:04:05", vodTime)
@@ -62,18 +50,6 @@ func formatRelativeTime(vodTime string) string {
 	return fmt.Sprintf("%dmo", months)
 }
 
-type QueryTarget struct {
-	SeriesIndex int
-	DomainIndex int
-	Domain      *store.Domain
-}
-
-type SearchResult struct {
-	Target QueryTarget
-	Resp   *SearchResponse
-	Err    error
-}
-
 var searchCmd = &cobra.Command{
 	Use:     "search [keyword]",
 	Aliases: []string{"s"},
@@ -91,105 +67,22 @@ func ShowSearch(w io.Writer, keyword string, seriesCount int, page int, sortBy s
 		return
 	}
 
-	// Rank series and pick top N
-	type seriesRank struct {
-		sIdx     int
-		dIdx     int
-		minScore int
+	searchService := service.NewSearchService(nil)
+	results, err := searchService.Search(context.Background(), s, keyword, seriesCount, page)
+	if err != nil {
+		fmt.Fprintf(w, "Error searching sites: %v\n", err)
+		return
 	}
 
-	var ranks []seriesRank
-	for i, series := range s.Series {
-		if len(series.Domains) == 0 {
-			continue
-		}
-		bestDIdx := 0
-		minScore := series.Domains[0].FailureScore
-		for j, dom := range series.Domains {
-			if dom.FailureScore < minScore {
-				minScore = dom.FailureScore
-				bestDIdx = j
-			}
-		}
-		ranks = append(ranks, seriesRank{sIdx: i, dIdx: bestDIdx, minScore: minScore})
-	}
-
-	sort.Slice(ranks, func(i, j int) bool {
-		return ranks[i].minScore < ranks[j].minScore
-	})
-
-	limit := seriesCount
-	if limit > len(ranks) {
-		limit = len(ranks)
-	}
-
-	if limit == 0 {
+	if len(results) == 0 {
 		fmt.Fprintln(w, "No valid domains to search.")
 		return
 	}
 
-	var targets []QueryTarget
-	for i := 0; i < limit; i++ {
-		r := ranks[i]
-		targets = append(targets, QueryTarget{
-			SeriesIndex: r.sIdx,
-			DomainIndex: r.dIdx,
-			Domain:      s.Series[r.sIdx].Domains[r.dIdx],
-		})
-	}
-
-	// Execute searches concurrently
-	var wg sync.WaitGroup
-	results := make(chan SearchResult, len(targets))
-
-	client := &http.Client{Timeout: 10 * time.Second}
-
-	for _, target := range targets {
-		wg.Add(1)
-		go func(t QueryTarget) {
-			defer wg.Done()
-
-			baseEndpoint := buildEndpointURL(t.Domain.URL)
-			reqURL := fmt.Sprintf("%s?ac=list&wd=%s&pg=%d", baseEndpoint, url.QueryEscape(keyword), page)
-
-			resp, err := client.Get(reqURL)
-			if err != nil {
-				results <- SearchResult{Target: t, Err: err}
-				return
-			}
-			defer resp.Body.Close()
-
-			if resp.StatusCode != http.StatusOK {
-				results <- SearchResult{Target: t, Err: fmt.Errorf("HTTP %d", resp.StatusCode)}
-				return
-			}
-
-			var searchResp SearchResponse
-			if err := json.NewDecoder(resp.Body).Decode(&searchResp); err != nil {
-				results <- SearchResult{Target: t, Err: err}
-				return
-			}
-
-			results <- SearchResult{Target: t, Resp: &searchResp}
-		}(target)
-	}
-
-	wg.Wait()
-	close(results)
-
-	// Check for failures and update scores
-	var allResults []SearchResult
-	resultsCopy := make(chan SearchResult, len(targets))
-	for res := range results {
-		allResults = append(allResults, res)
-		resultsCopy <- res
-	}
-	close(resultsCopy)
-
 	hasFailures := false
-	for _, res := range allResults {
+	for _, res := range results {
 		if res.Err != nil {
-			res.Target.Domain.FailureScore++
+			s.Series[res.SeriesIndex].Domains[res.DomainIndex].FailureScore++
 			hasFailures = true
 		}
 	}
@@ -229,10 +122,10 @@ func ShowSearch(w io.Writer, keyword string, seriesCount int, page int, sortBy s
 
 	overlaps := make(map[string]int)
 
-	for res := range resultsCopy {
-		domainID := fmt.Sprintf("%d.%d", res.Target.SeriesIndex+1, res.Target.DomainIndex+1)
-		score := fmt.Sprintf("%d", res.Target.Domain.FailureScore)
-		if res.Err != nil || len(res.Resp.List) == 0 {
+	for _, res := range results {
+		domainID := fmt.Sprintf("%d.%d", res.SeriesIndex+1, res.DomainIndex+1)
+		score := fmt.Sprintf("%d", s.Series[res.SeriesIndex].Domains[res.DomainIndex].FailureScore)
+		if res.Err != nil || len(res.Items) == 0 {
 			continue
 		}
 
@@ -243,7 +136,7 @@ func ShowSearch(w io.Writer, keyword string, seriesCount int, page int, sortBy s
 			maxScoreWidth = runewidth.StringWidth(score)
 		}
 
-		for _, item := range res.Resp.List {
+		for _, item := range res.Items {
 			vID := fmt.Sprintf("%d", item.VodID)
 			relTime := formatRelativeTime(item.VodTime)
 			if runewidth.StringWidth(vID) > maxVodIDWidth {
