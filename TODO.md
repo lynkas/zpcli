@@ -70,6 +70,10 @@ The project should evolve toward these layers:
 Objective:
 Create a clean baseline before larger refactors begin.
 
+Progress notes:
+
+- 2026-03-23: added `README.md`, architecture notes, MCP contract notes, and sample config / MCP transcript fixtures
+
 Tasks:
 
 - Document the current commands, flags, and behaviors.

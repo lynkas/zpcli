@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "series": [
+    {
+      "domains": [
+        {
+          "url": "https://example.com/api.php/provide/vod",
+          "failure_score": 0
+        },
+        {
+          "url": "backup.example.com",
+          "failure_score": 2
+        }
+      ]
+    },
+    {
+      "domains": [
+        {
+          "url": "another.example.com",
+          "failure_score": 0
+        }
+      ]
+    }
+  ]
+}
