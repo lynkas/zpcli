@@ -4,6 +4,17 @@ All notable changes to `zpcli` should be documented in this file.
 
 ## Unreleased
 
+## v0.1.1
+
+### Fixed
+
+- GitHub Release workflow now builds successfully with the required Go version for `log/slog`
+- Project minimum supported Go version is explicitly set to `1.21`
+
+### Upgrade Notes
+
+- Prefer `v0.1.1` over `v0.1.0` for Linux release binaries and plugin integration
+
 ## v0.1.0
 
 ### Added
