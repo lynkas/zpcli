@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"zpcli/internal/logx"
 	"zpcli/internal/service"
 	"zpcli/store"
 
@@ -34,8 +35,11 @@ Output:
 }
 
 func ShowList(w io.Writer) {
+	logger := logx.Logger("cmd.site.ls")
+	logger.Info("list sites command start", "output_json", outputJSON)
 	s, err := store.Load()
 	if err != nil {
+		logger.Error("load store failed", "error", err)
 		if outputJSON {
 			writeCommandError(w, fmt.Sprintf("Error loading store: %v", err))
 			return
@@ -45,6 +49,7 @@ func ShowList(w io.Writer) {
 	}
 
 	if len(s.Series) == 0 {
+		logger.Info("list sites no configured series")
 		if outputJSON {
 			writeJSON(w, map[string]interface{}{
 				"status": "ok",
@@ -58,6 +63,8 @@ func ShowList(w io.Writer) {
 
 	siteService := service.NewSiteService()
 	seriesList := siteService.ListSites(s)
+	logger.Info("list sites command complete", "series_count", len(seriesList))
+	logger.Debug("list sites output", "sites", seriesList)
 	if outputJSON {
 		writeJSON(w, map[string]interface{}{
 			"status": "ok",

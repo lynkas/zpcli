@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"zpcli/internal/logx"
 	"zpcli/internal/service"
 	"zpcli/store"
 
@@ -29,8 +30,11 @@ Supported forms:
 }
 
 func runValidate() {
+	logger := logx.Logger("cmd.site.validate")
+	logger.Info("validate command start", "output_json", outputJSON)
 	data, err := store.Load()
 	if err != nil {
+		logger.Error("load store failed", "error", err)
 		if outputJSON {
 			writeCommandError(os.Stdout, fmt.Sprintf("Error loading store: %v", err))
 			return
@@ -41,6 +45,8 @@ func runValidate() {
 
 	healthService := service.NewHealthService()
 	issues := healthService.ValidateStore(data)
+	logger.Info("validate command complete", "issue_count", len(issues))
+	logger.Debug("validate issues", "issues", issues)
 	if outputJSON {
 		writeJSON(os.Stdout, map[string]interface{}{
 			"status": "ok",

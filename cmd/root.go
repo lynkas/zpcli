@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"zpcli/internal/logx"
 
 	"github.com/spf13/cobra"
 )
@@ -11,6 +12,8 @@ import (
 var (
 	detailShowAll bool
 	outputJSON    bool
+	logFormat     string
+	verboseCount  int
 )
 
 func Execute() {
@@ -181,9 +184,23 @@ TOP-LEVEL COMMAND GUIDE
 
 GLOBAL FLAGS
   - ` + "`--json`" + `: optional, machine-readable JSON output where supported
-  - ` + "`--all`" + `: optional, show more detail for detail output`,
+  - ` + "`--all`" + `: optional, show more detail for detail output
+  - ` + "`-v`" + `: optional, enable logs; repeat as ` + "`-vv`" + ` for more detail`,
 	Example: ``,
 	Args:    cobra.ArbitraryArgs,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		logx.Init(verboseCount, logFormat)
+		if logx.Enabled() {
+			logx.Logger("cmd.root").Info("command start",
+				"command", cmd.CommandPath(),
+				"args", args,
+				"output_json", outputJSON,
+				"detail_show_all", detailShowAll,
+				"verbosity", verboseCount,
+				"log_format", logFormat,
+			)
+		}
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		if (len(args) == 2 || len(args) == 3) && strings.Contains(args[0], ".") {
 			ShowDetail(os.Stdout, detailShowAll, args...)
@@ -196,4 +213,6 @@ GLOBAL FLAGS
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&detailShowAll, "all", "a", false, "Show all provided information")
 	rootCmd.PersistentFlags().BoolVar(&outputJSON, "json", false, "Output machine-readable JSON")
+	rootCmd.PersistentFlags().CountVarP(&verboseCount, "verbose", "v", "Enable logs; use -vv for more detail")
+	rootCmd.PersistentFlags().StringVar(&logFormat, "log-format", "text", "Log format: text or json")
 }

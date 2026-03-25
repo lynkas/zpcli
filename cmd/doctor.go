@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"zpcli/internal/logx"
 	"zpcli/internal/service"
 	"zpcli/store"
 
@@ -33,6 +34,8 @@ Supported forms:
 }
 
 func runDoctor() {
+	logger := logx.Logger("cmd.doctor")
+	logger.Info("doctor command start", "output_json", outputJSON)
 	configPath, configErr := store.ConfigFilePath()
 	data, loadErr := store.Load()
 
@@ -44,6 +47,16 @@ func runDoctor() {
 
 	goPath, goFound := lookPath("go")
 	goFmtPath, goFmtFound := lookPath("gofmt")
+	logger.Info("doctor probes complete",
+		"config_path", configPath,
+		"config_error", configErr,
+		"load_error", loadErr,
+		"go_found", goFound,
+		"go_path", goPath,
+		"gofmt_found", goFmtFound,
+		"gofmt_path", goFmtPath,
+	)
+	logger.Debug("doctor health report", "health_report", healthReport)
 
 	if outputJSON {
 		writeJSON(os.Stdout, map[string]interface{}{

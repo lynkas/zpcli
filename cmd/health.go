@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"zpcli/internal/logx"
 	"zpcli/internal/service"
 	"zpcli/store"
 
@@ -29,8 +30,11 @@ Supported forms:
 }
 
 func showHealth() {
+	logger := logx.Logger("cmd.site.health")
+	logger.Info("health command start", "output_json", outputJSON)
 	data, err := store.Load()
 	if err != nil {
+		logger.Error("load store failed", "error", err)
 		if outputJSON {
 			writeCommandError(os.Stdout, fmt.Sprintf("Error loading store: %v", err))
 			return
@@ -42,6 +46,7 @@ func showHealth() {
 	healthService := service.NewHealthService()
 	report, err := healthService.BuildHealthReport(data)
 	if err != nil {
+		logger.Error("build health report failed", "error", err)
 		if outputJSON {
 			writeCommandError(os.Stdout, fmt.Sprintf("Error building health report: %v", err))
 			return
@@ -49,6 +54,8 @@ func showHealth() {
 		fmt.Printf("Error building health report: %v\n", err)
 		return
 	}
+	logger.Info("health command complete", "series_count", report.SeriesCount, "domain_count", report.DomainCount, "warning_count", report.WarningCount, "invalid_count", report.InvalidCount)
+	logger.Debug("health report", "report", report)
 
 	if outputJSON {
 		writeJSON(os.Stdout, report)

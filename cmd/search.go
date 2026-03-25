@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 	"time"
+	"zpcli/internal/logx"
 	"zpcli/store"
 
 	"os"
@@ -82,8 +83,11 @@ Behavior:
 }
 
 func ShowSearch(w io.Writer, keyword string, seriesCount int, page int, sortBy string) {
+	logger := logx.Logger("cmd.search")
+	logger.Info("search command start", "keyword", keyword, "series_count", seriesCount, "page", page, "sort_by", sortBy, "output_json", outputJSON)
 	s, err := store.Load()
 	if err != nil {
+		logger.Error("load store failed", "error", err)
 		if outputJSON {
 			writeCommandError(w, fmt.Sprintf("Error loading store: %v", err))
 			return
@@ -95,6 +99,7 @@ func ShowSearch(w io.Writer, keyword string, seriesCount int, page int, sortBy s
 	searchService := service.NewSearchService(nil)
 	results, err := searchService.Search(context.Background(), s, keyword, seriesCount, page)
 	if err != nil {
+		logger.Error("search service failed", "keyword", keyword, "error", err)
 		if outputJSON {
 			writeCommandError(w, fmt.Sprintf("Error searching sites: %v", err))
 			return
@@ -104,6 +109,7 @@ func ShowSearch(w io.Writer, keyword string, seriesCount int, page int, sortBy s
 	}
 
 	if len(results) == 0 {
+		logger.Info("search command no results", "keyword", keyword)
 		if outputJSON {
 			writeJSON(w, map[string]interface{}{
 				"status":  "ok",
@@ -121,11 +127,14 @@ func ShowSearch(w io.Writer, keyword string, seriesCount int, page int, sortBy s
 		if res.Err != nil {
 			s.Series[res.SeriesIndex].Domains[res.DomainIndex].FailureScore++
 			hasFailures = true
+			logger.Warn("search result failure", "series_index", res.SeriesIndex, "domain_index", res.DomainIndex, "domain_url", res.DomainURL, "error", res.Err)
 		}
 	}
 	if hasFailures {
 		s.Save()
 	}
+	logger.Info("search command complete", "keyword", keyword, "result_count", len(results), "sort_by", sortBy)
+	logger.Debug("search command results", "results", results)
 	if outputJSON {
 		writeJSON(w, map[string]interface{}{
 			"status":  "ok",

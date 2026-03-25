@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"zpcli/internal/logx"
 	"zpcli/internal/service"
 	"zpcli/store"
 
@@ -46,16 +47,21 @@ Supported forms:
 }
 
 func RemoveSite(id string) error {
+	logger := logx.Logger("cmd.site.rm")
+	logger.Info("remove site command start", "id", id, "output_json", outputJSON)
 	s, err := store.Load()
 	if err != nil {
+		logger.Error("load store failed", "error", err)
 		return fmt.Errorf("loading store: %v", err)
 	}
 
 	siteService := service.NewSiteService()
 	message, err := siteService.RemoveSite(s, id)
 	if err != nil {
+		logger.Error("site service remove failed", "id", id, "error", err)
 		return err
 	}
+	logger.Info("remove site command complete", "message", message)
 	if outputJSON {
 		writeJSON(os.Stdout, commandStatus{Status: "ok", Message: message})
 		return nil

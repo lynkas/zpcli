@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"zpcli/internal/logx"
 	"zpcli/internal/service"
 	"zpcli/store"
 
@@ -54,17 +55,23 @@ Parameter details:
 }
 
 func AddSite(args ...string) error {
+	logger := logx.Logger("cmd.site.add")
+	logger.Info("add site command start", "args", args, "output_json", outputJSON)
 	s, err := store.Load()
 	if err != nil {
+		logger.Error("load store failed", "error", err)
 		return fmt.Errorf("loading store: %v", err)
 	}
 
 	siteService := service.NewSiteService()
 	message, err := siteService.AddSite(s, args...)
 	if err != nil {
+		logger.Error("site service add failed", "args", args, "error", err)
 		return err
 	}
+	logger.Info("add site command complete", "message", message)
 	if outputJSON {
+		logger.Debug("add site command json output", "message", message)
 		writeJSON(os.Stdout, commandStatus{Status: "ok", Message: message})
 		return nil
 	}

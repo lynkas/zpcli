@@ -11,6 +11,7 @@ import (
 	"os"
 	"sync"
 	"time"
+	"zpcli/internal/logx"
 	"zpcli/internal/service"
 	"zpcli/store"
 
@@ -177,11 +178,15 @@ Supported forms:
 }
 
 func serveStdio() {
+	logger := logx.Logger("cmd.mcp")
+	logger.Info("mcp stdio server start")
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		line := scanner.Bytes()
+		logger.Info("mcp stdio input", "raw", string(line))
 		var req JSONRPCRequest
 		if err := json.Unmarshal(line, &req); err != nil {
+			logger.Error("mcp stdio parse error", "error", err, "raw", string(line))
 			sendError(os.Stdout, nil, -32700, "Parse error", nil)
 			continue
 		}
@@ -201,9 +206,11 @@ var (
 )
 
 func serveSSE(port int) {
-	fmt.Fprintf(os.Stderr, "Starting MCP SSE server on :%d\n", port)
+	logger := logx.Logger("cmd.mcp")
+	logger.Info("mcp sse server start", "port", port)
 
 	http.HandleFunc("/sse", func(w http.ResponseWriter, r *http.Request) {
+		logger.Info("mcp sse connect", "remote_addr", r.RemoteAddr)
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
@@ -223,6 +230,7 @@ func serveSSE(port int) {
 			sessMu.Lock()
 			delete(sessions, sessionID)
 			sessMu.Unlock()
+			logger.Info("mcp sse disconnect", "session_id", sessionID)
 		}()
 
 		// Send endpoint info
@@ -236,6 +244,7 @@ func serveSSE(port int) {
 	})
 
 	http.HandleFunc("/messages", func(w http.ResponseWriter, r *http.Request) {
+		logger.Info("mcp sse message request", "method", r.Method, "path", r.URL.Path, "query", r.URL.RawQuery)
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -253,8 +262,10 @@ func serveSSE(port int) {
 
 		var req JSONRPCRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			logger.Error("mcp sse decode request failed", "session_id", sessionID, "error", err)
 			return
 		}
+		logger.Info("mcp sse decoded request", "session_id", sessionID, "method", req.Method, "id", req.ID, "params", string(req.Params))
 
 		// Wrap the session's channel as a writer
 		handleRequest(&chanWriter{s.msgs}, req)
@@ -276,6 +287,8 @@ func (cw *chanWriter) Write(p []byte) (n int, err error) {
 }
 
 func handleRequest(w io.Writer, req JSONRPCRequest) {
+	logger := logx.Logger("cmd.mcp")
+	logger.Info("mcp handle request", "method", req.Method, "id", req.ID, "params", string(req.Params))
 	switch req.Method {
 	case "initialize":
 		sendResponse(w, req.ID, InitializeResult{
@@ -333,6 +346,7 @@ func handleRequest(w io.Writer, req JSONRPCRequest) {
 	case "tools/call":
 		handleToolCall(w, req)
 	default:
+		logger.Warn("mcp unknown method", "method", req.Method, "id", req.ID)
 		if req.ID != nil {
 			sendError(w, req.ID, -32601, "Method not found", nil)
 		}
@@ -340,17 +354,20 @@ func handleRequest(w io.Writer, req JSONRPCRequest) {
 }
 
 func handleToolCall(w io.Writer, req JSONRPCRequest) {
+	logger := logx.Logger("cmd.mcp")
 	var params struct {
 		Name      string                 `json:"name"`
 		Arguments map[string]interface{} `json:"arguments"`
 	}
 	if err := json.Unmarshal(req.Params, &params); err != nil {
+		logger.Error("mcp tool call decode failed", "id", req.ID, "error", err, "params", string(req.Params))
 		sendError(w, req.ID, -32602, "Invalid params", nil)
 		return
 	}
 	if params.Arguments == nil {
 		params.Arguments = make(map[string]interface{})
 	}
+	logger.Info("mcp tool call start", "id", req.ID, "tool", params.Name, "arguments", params.Arguments)
 
 	var result ToolCallResult
 	var buf bytes.Buffer
@@ -534,14 +551,18 @@ func handleToolCall(w io.Writer, req JSONRPCRequest) {
 		}
 		result.Content = append(result.Content, Content{Type: "text", Text: buf.String()})
 	default:
+		logger.Warn("mcp unknown tool", "tool", params.Name, "id", req.ID)
 		sendError(w, req.ID, -32602, "Unknown tool", nil)
 		return
 	}
 
+	logger.Info("mcp tool call complete", "id", req.ID, "tool", params.Name, "is_error", result.IsError, "content_count", len(result.Content))
+	logger.Debug("mcp tool call result", "id", req.ID, "tool", params.Name, "result", result)
 	sendResponse(w, req.ID, result)
 }
 
 func sendResponse(w io.Writer, id interface{}, result interface{}) {
+	logx.Logger("cmd.mcp").Info("mcp send response", "id", id, "result", result)
 	resp := JSONRPCResponse{
 		JSONRPC: "2.0",
 		ID:      id,
@@ -552,6 +573,7 @@ func sendResponse(w io.Writer, id interface{}, result interface{}) {
 }
 
 func sendError(w io.Writer, id interface{}, code int, message string, data interface{}) {
+	logx.Logger("cmd.mcp").Error("mcp send error", "id", id, "code", code, "message", message, "data", data)
 	resp := JSONRPCResponse{
 		JSONRPC: "2.0",
 		ID:      id,

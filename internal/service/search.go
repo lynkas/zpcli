@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 	"zpcli/internal/domain"
+	"zpcli/internal/logx"
 	"zpcli/store"
 )
 
@@ -35,7 +36,10 @@ func NewSearchService(client *http.Client) *SearchService {
 }
 
 func (s *SearchService) Search(ctx context.Context, data *store.StoreData, keyword string, seriesCount int, page int) ([]domain.SearchResult, error) {
+	logger := logx.Logger("service.search")
+	logger.Info("search start", "keyword", keyword, "series_count", seriesCount, "page", page, "has_data", data != nil)
 	if data == nil {
+		logger.Error("search missing store data")
 		return nil, fmt.Errorf("store data is required")
 	}
 
@@ -70,12 +74,14 @@ func (s *SearchService) Search(ctx context.Context, data *store.StoreData, keywo
 	sort.Slice(ranks, func(i, j int) bool {
 		return ranks[i].minScore < ranks[j].minScore
 	})
+	logger.Debug("search ranked series", "ranks", ranks)
 
 	limit := seriesCount
 	if limit > len(ranks) {
 		limit = len(ranks)
 	}
 	if limit == 0 {
+		logger.Info("search complete with no targets", "keyword", keyword)
 		return nil, nil
 	}
 
@@ -98,8 +104,10 @@ func (s *SearchService) Search(ctx context.Context, data *store.StoreData, keywo
 			defer wg.Done()
 
 			reqURL := fmt.Sprintf("%s?ac=list&wd=%s&pg=%d", BuildEndpointURL(t.Domain.URL), url.QueryEscape(keyword), page)
+			logger.Info("search http request", "series_index", t.SeriesIndex, "domain_index", t.DomainIndex, "domain_url", t.Domain.URL, "request_url", reqURL)
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
 			if err != nil {
+				logger.Error("search build request failed", "request_url", reqURL, "error", err)
 				results <- domain.SearchResult{
 					SeriesIndex: t.SeriesIndex,
 					DomainIndex: t.DomainIndex,
@@ -112,6 +120,7 @@ func (s *SearchService) Search(ctx context.Context, data *store.StoreData, keywo
 
 			resp, err := s.Client.Do(req)
 			if err != nil {
+				logger.Error("search http request failed", "request_url", reqURL, "error", err)
 				results <- domain.SearchResult{
 					SeriesIndex: t.SeriesIndex,
 					DomainIndex: t.DomainIndex,
@@ -122,8 +131,10 @@ func (s *SearchService) Search(ctx context.Context, data *store.StoreData, keywo
 				return
 			}
 			defer resp.Body.Close()
+			logger.Info("search http response", "request_url", reqURL, "status_code", resp.StatusCode)
 
 			if resp.StatusCode != http.StatusOK {
+				logger.Warn("search non-200 response", "request_url", reqURL, "status_code", resp.StatusCode)
 				results <- domain.SearchResult{
 					SeriesIndex: t.SeriesIndex,
 					DomainIndex: t.DomainIndex,
@@ -136,6 +147,7 @@ func (s *SearchService) Search(ctx context.Context, data *store.StoreData, keywo
 
 			var payload searchResponse
 			if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+				logger.Error("search decode response failed", "request_url", reqURL, "error", err)
 				results <- domain.SearchResult{
 					SeriesIndex: t.SeriesIndex,
 					DomainIndex: t.DomainIndex,
@@ -145,6 +157,7 @@ func (s *SearchService) Search(ctx context.Context, data *store.StoreData, keywo
 				}
 				return
 			}
+			logger.Debug("search decoded response", "request_url", reqURL, "payload", payload)
 
 			items := make([]domain.SearchItem, 0, len(payload.List))
 			for _, item := range payload.List {
@@ -157,6 +170,8 @@ func (s *SearchService) Search(ctx context.Context, data *store.StoreData, keywo
 				})
 			}
 
+			logger.Info("search target complete", "request_url", reqURL, "item_count", len(items))
+			logger.Debug("search target result", "request_url", reqURL, "items", items)
 			results <- domain.SearchResult{
 				SeriesIndex: t.SeriesIndex,
 				DomainIndex: t.DomainIndex,
@@ -174,6 +189,8 @@ func (s *SearchService) Search(ctx context.Context, data *store.StoreData, keywo
 	for result := range results {
 		collected = append(collected, result)
 	}
+	logger.Info("search complete", "keyword", keyword, "result_count", len(collected))
+	logger.Debug("search results", "results", collected)
 
 	return collected, nil
 }

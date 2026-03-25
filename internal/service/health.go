@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"strings"
 	"zpcli/internal/domain"
+	"zpcli/internal/logx"
 	"zpcli/store"
 )
 
@@ -15,8 +16,11 @@ func NewHealthService() *HealthService {
 }
 
 func (s *HealthService) BuildHealthReport(data *store.StoreData) (*domain.HealthReport, error) {
+	logger := logx.Logger("service.health")
+	logger.Info("build health report start", "has_data", data != nil)
 	configPath, err := store.ConfigFilePath()
 	if err != nil {
+		logger.Error("resolve config path for health failed", "error", err)
 		return nil, err
 	}
 
@@ -24,6 +28,7 @@ func (s *HealthService) BuildHealthReport(data *store.StoreData) (*domain.Health
 		ConfigPath: configPath,
 	}
 	if data == nil {
+		logger.Info("build health report complete", "report", report)
 		return report, nil
 	}
 
@@ -46,16 +51,29 @@ func (s *HealthService) BuildHealthReport(data *store.StoreData) (*domain.Health
 		}
 	}
 
+	logger.Info("build health report complete",
+		"config_path", report.ConfigPath,
+		"version", report.Version,
+		"series_count", report.SeriesCount,
+		"domain_count", report.DomainCount,
+		"invalid_count", report.InvalidCount,
+		"warning_count", report.WarningCount,
+	)
+	logger.Debug("build health report result", "report", report)
 	return report, nil
 }
 
 func (s *HealthService) ValidateStore(data *store.StoreData) []domain.ValidationIssue {
+	logger := logx.Logger("service.health")
+	logger.Info("validate store start", "has_data", data != nil)
 	if data == nil {
-		return []domain.ValidationIssue{{
+		issues := []domain.ValidationIssue{{
 			Level:   "error",
 			Scope:   "config",
 			Message: "store data is nil",
 		}}
+		logger.Warn("validate store nil data", "issues", issues)
+		return issues
 	}
 
 	var issues []domain.ValidationIssue
@@ -128,5 +146,7 @@ func (s *HealthService) ValidateStore(data *store.StoreData) []domain.Validation
 		}
 	}
 
+	logger.Info("validate store complete", "issue_count", len(issues))
+	logger.Debug("validate store result", "issues", issues)
 	return issues
 }

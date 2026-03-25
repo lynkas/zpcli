@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"zpcli/internal/logx"
 	"zpcli/internal/service"
 	"zpcli/store"
 
@@ -52,15 +53,18 @@ Parameters:
 }
 
 func ShowDetail(w io.Writer, showAll bool, args ...string) {
+	logger := logx.Logger("cmd.detail")
 	siteIDStr := args[0]
 	vodIDStr := args[1]
 	targetEp := ""
 	if len(args) == 3 {
 		targetEp = args[2]
 	}
+	logger.Info("detail command start", "site_id", siteIDStr, "vod_id", vodIDStr, "target_episode", targetEp, "show_all", showAll, "output_json", outputJSON)
 
 	s, err := store.Load()
 	if err != nil {
+		logger.Error("load store failed", "error", err)
 		if outputJSON {
 			writeCommandError(w, fmt.Sprintf("Error loading store: %v", err))
 			return
@@ -72,6 +76,7 @@ func ShowDetail(w io.Writer, showAll bool, args ...string) {
 	detailService := service.NewDetailService(nil)
 	result, err := detailService.GetDetail(context.Background(), s, siteIDStr, vodIDStr)
 	if err != nil {
+		logger.Error("detail service failed", "site_id", siteIDStr, "vod_id", vodIDStr, "error", err)
 		if outputJSON {
 			writeCommandError(w, fmt.Sprintf("Error fetching detail: %v", err))
 			return
@@ -83,6 +88,7 @@ func ShowDetail(w io.Writer, showAll bool, args ...string) {
 	if result.Err != nil {
 		s.Series[result.SeriesIndex].Domains[result.DomainIndex].FailureScore++
 		s.Save()
+		logger.Warn("detail result returned error", "site_id", siteIDStr, "vod_id", vodIDStr, "error", result.Err)
 		if outputJSON {
 			writeCommandError(w, fmt.Sprintf("Error fetching detail: %v", result.Err))
 			return
@@ -92,6 +98,7 @@ func ShowDetail(w io.Writer, showAll bool, args ...string) {
 	}
 
 	if result.Item == nil {
+		logger.Info("detail command no detail found", "site_id", siteIDStr, "vod_id", vodIDStr)
 		if outputJSON {
 			writeJSON(w, map[string]interface{}{
 				"status":  "ok",
@@ -104,10 +111,14 @@ func ShowDetail(w io.Writer, showAll bool, args ...string) {
 	}
 
 	v := result.Item
+	logger.Info("detail command got item", "site_id", siteIDStr, "vod_id", vodIDStr, "player_count", len(v.Players))
+	logger.Debug("detail command item", "item", v)
 
 	if targetEp != "" {
+		logger.Info("detail command resolve episode", "target_episode", targetEp)
 		if outputJSON {
 			if episodeURL, ok := service.FindEpisodeURL(v, targetEp); ok {
+				logger.Info("detail command episode found", "target_episode", targetEp, "episode_url", episodeURL)
 				writeJSON(w, map[string]interface{}{
 					"status":      "ok",
 					"site_id":     siteIDStr,
@@ -117,6 +128,7 @@ func ShowDetail(w io.Writer, showAll bool, args ...string) {
 				})
 				return
 			}
+			logger.Warn("detail command episode not found", "target_episode", targetEp)
 			writeCommandError(w, fmt.Sprintf("Episode %s not found.", targetEp))
 			return
 		}

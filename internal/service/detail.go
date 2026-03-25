@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 	"zpcli/internal/domain"
+	"zpcli/internal/logx"
 	"zpcli/store"
 )
 
@@ -50,28 +51,36 @@ func NewDetailService(client *http.Client) *DetailService {
 }
 
 func (s *DetailService) GetDetail(ctx context.Context, data *store.StoreData, siteID string, vodID string) (*domain.DetailResult, error) {
+	logger := logx.Logger("service.detail")
+	logger.Info("get detail start", "site_id", siteID, "vod_id", vodID, "has_data", data != nil)
 	if data == nil {
+		logger.Error("get detail missing store data")
 		return nil, fmt.Errorf("store data is required")
 	}
 
 	seriesIndex, domainIndex, err := ParseDomainID(siteID)
 	if err != nil {
+		logger.Error("parse site id failed", "site_id", siteID, "error", err)
 		return nil, err
 	}
 
 	if seriesIndex < 0 || seriesIndex >= len(data.Series) || domainIndex < 0 || domainIndex >= len(data.Series[seriesIndex].Domains) {
+		logger.Warn("get detail invalid site id", "site_id", siteID, "series_index", seriesIndex, "domain_index", domainIndex)
 		return nil, fmt.Errorf("invalid siteId: %s", siteID)
 	}
 
 	domainConfig := data.Series[seriesIndex].Domains[domainIndex]
 	reqURL := fmt.Sprintf("%s?ac=detail&ids=%s", BuildEndpointURL(domainConfig.URL), vodID)
+	logger.Info("detail http request", "site_id", siteID, "vod_id", vodID, "domain_url", domainConfig.URL, "request_url", reqURL)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
 	if err != nil {
+		logger.Error("build detail request failed", "request_url", reqURL, "error", err)
 		return nil, err
 	}
 
 	resp, err := s.Client.Do(req)
 	if err != nil {
+		logger.Error("detail http request failed", "request_url", reqURL, "error", err)
 		return &domain.DetailResult{
 			SeriesIndex: seriesIndex,
 			DomainIndex: domainIndex,
@@ -80,8 +89,10 @@ func (s *DetailService) GetDetail(ctx context.Context, data *store.StoreData, si
 		}, nil
 	}
 	defer resp.Body.Close()
+	logger.Info("detail http response", "request_url", reqURL, "status_code", resp.StatusCode)
 
 	if resp.StatusCode != http.StatusOK {
+		logger.Warn("detail non-200 response", "request_url", reqURL, "status_code", resp.StatusCode)
 		return &domain.DetailResult{
 			SeriesIndex: seriesIndex,
 			DomainIndex: domainIndex,
@@ -92,6 +103,7 @@ func (s *DetailService) GetDetail(ctx context.Context, data *store.StoreData, si
 
 	var payload detailResponse
 	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		logger.Error("decode detail response failed", "request_url", reqURL, "error", err)
 		return &domain.DetailResult{
 			SeriesIndex: seriesIndex,
 			DomainIndex: domainIndex,
@@ -99,8 +111,10 @@ func (s *DetailService) GetDetail(ctx context.Context, data *store.StoreData, si
 			Err:         err,
 		}, nil
 	}
+	logger.Debug("detail decoded response", "request_url", reqURL, "payload", payload)
 
 	if len(payload.List) == 0 {
+		logger.Info("detail no items found", "site_id", siteID, "vod_id", vodID)
 		return &domain.DetailResult{
 			SeriesIndex: seriesIndex,
 			DomainIndex: domainIndex,
@@ -109,7 +123,7 @@ func (s *DetailService) GetDetail(ctx context.Context, data *store.StoreData, si
 	}
 
 	item := payload.List[0]
-	return &domain.DetailResult{
+	result := &domain.DetailResult{
 		SeriesIndex: seriesIndex,
 		DomainIndex: domainIndex,
 		DomainURL:   domainConfig.URL,
@@ -134,22 +148,30 @@ func (s *DetailService) GetDetail(ctx context.Context, data *store.StoreData, si
 			VodRemarks:     item.VodRemarks,
 			Players:        parsePlayers(item.VodPlayFrom, item.VodPlayURL),
 		},
-	}, nil
+	}
+	logger.Info("get detail complete", "site_id", siteID, "vod_id", vodID, "player_count", len(result.Item.Players))
+	logger.Debug("get detail result", "result", result)
+	return result, nil
 }
 
 func ParseDomainID(id string) (int, int, error) {
+	logger := logx.Logger("service.detail")
 	parts := strings.Split(id, ".")
 	if len(parts) != 2 {
+		logger.Warn("parse domain id invalid format", "id", id)
 		return 0, 0, fmt.Errorf("invalid siteId format (expected x.y)")
 	}
 	seriesIndex, err := strconv.Atoi(parts[0])
 	if err != nil {
+		logger.Warn("parse domain id invalid series", "id", id, "error", err)
 		return 0, 0, err
 	}
 	domainIndex, err := strconv.Atoi(parts[1])
 	if err != nil {
+		logger.Warn("parse domain id invalid domain", "id", id, "error", err)
 		return 0, 0, err
 	}
+	logger.Debug("parse domain id complete", "id", id, "series_index", seriesIndex-1, "domain_index", domainIndex-1)
 	return seriesIndex - 1, domainIndex - 1, nil
 }
 
@@ -183,21 +205,27 @@ func StripHTML(s string) string {
 }
 
 func FindEpisodeURL(item *domain.DetailItem, target string) (string, bool) {
+	logger := logx.Logger("service.detail")
+	logger.Info("find episode url start", "target", target, "has_item", item != nil)
 	if item == nil {
+		logger.Warn("find episode url missing detail item", "target", target)
 		return "", false
 	}
 	for _, player := range item.Players {
 		for i, episode := range player.Episodes {
 			index := strconv.Itoa(i + 1)
 			if target == index || strings.Contains(episode.Name, target) {
+				logger.Info("find episode url complete", "target", target, "player", player.Name, "episode_name", episode.Name, "url", episode.URL)
 				return episode.URL, true
 			}
 		}
 	}
+	logger.Info("find episode url no match", "target", target)
 	return "", false
 }
 
 func parsePlayers(playFrom string, playURL string) []domain.DetailPlayer {
+	logger := logx.Logger("service.detail")
 	playerNames := strings.Split(playFrom, "$$$")
 	groups := strings.Split(playURL, "$$$")
 	players := make([]domain.DetailPlayer, 0, len(groups))
@@ -234,5 +262,6 @@ func parsePlayers(playFrom string, playURL string) []domain.DetailPlayer {
 		players = append(players, player)
 	}
 
+	logger.Debug("parse players complete", "play_from", playFrom, "play_url", playURL, "players", players)
 	return players
 }
