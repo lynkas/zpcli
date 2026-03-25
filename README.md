@@ -37,6 +37,29 @@ All major CLI commands now support:
 - `zpcli mcp`
 - `zpcli mcp --port 8080`
 
+## Build
+
+Local development build:
+
+- `make build`
+
+Show build metadata:
+
+- `zpcli version`
+- `zpcli --json version`
+
+Linux release artifacts:
+
+- `make release-artifacts`
+
+Produced files:
+
+- `dist/zpcli_linux_amd64`
+- `dist/zpcli_linux_arm64`
+- `dist/checksums.txt`
+
+GitHub Releases are published automatically when a tag like `v0.1.0` is pushed.
+
 ## Configuration
 
 By default, site configuration is stored at:

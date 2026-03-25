@@ -17,15 +17,32 @@ The following should be treated as breaking:
 
 ## Release Checklist
 
+- bump the `VERSION` file
 - update `CHANGELOG.md`
 - update `README.md` if command surface changed
 - update `docs/MCP_CONTRACT.md` if MCP tool behavior changed
-- update `TODO.md` progress notes if a roadmap milestone moved
+- update release and changelog notes if a roadmap milestone moved
+- confirm Linux artifacts build with `make release-artifacts`
 - run `go test ./...` if Go is available
 - run formatting if Go is available
 - verify `zpcli health`, `zpcli validate`, and `zpcli doctor`
 - verify `zpcli mcp` tool list output
 - verify config load/save against a test config path
+
+## Automated GitHub Release
+
+- update `VERSION`, then create and push a matching tag such as `v0.1.0`
+- GitHub Actions workflow `.github/workflows/release.yml` will:
+  - run `go test ./...`
+  - build Linux binaries for `amd64` and `arm64`
+  - generate `dist/checksums.txt`
+  - publish a GitHub Release with the Linux artifacts attached
+
+## Artifact Naming
+
+- `zpcli_linux_amd64`
+- `zpcli_linux_arm64`
+- `checksums.txt`
 
 ## Upgrade Notes
 
