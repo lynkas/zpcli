@@ -1,0 +1,8 @@
+services:
+  zpcli-mcp: 
+    networks:
+      - astrbot_network
+
+networks:
+  astrbot_network:
+    external: true

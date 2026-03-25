@@ -12,9 +12,28 @@ import (
 var validateCmd = &cobra.Command{
 	Use:   "validate",
 	Short: "Validate the current configuration",
+	Long: `Validate the current site configuration and report structural or data issues.
+
+Supported forms:
+  1. ` + "`zpcli site validate`" + `
+     Required:
+       - no positional arguments
+     Optional:
+       - ` + "`--json`" + `
+     Behavior:
+       - checks the stored configuration and prints any issues found`,
+	Example: ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		runValidate()
 	},
+}
+
+var legacyValidateCmd = &cobra.Command{
+	Use:    validateCmd.Use,
+	Short:  validateCmd.Short,
+	Args:   validateCmd.Args,
+	Hidden: true,
+	Run:    validateCmd.Run,
 }
 
 func runValidate() {
@@ -54,5 +73,6 @@ func runValidate() {
 
 func init() {
 	validateCmd.SetOut(os.Stdout)
-	rootCmd.AddCommand(validateCmd)
+	siteCmd.AddCommand(validateCmd)
+	rootCmd.AddCommand(legacyValidateCmd)
 }

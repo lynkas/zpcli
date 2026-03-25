@@ -13,12 +13,17 @@
 
 ### Site Management
 
-- `zpcli add <domain>`
-- `zpcli add <seriesId> <domain>`
-- `zpcli ls`
-- `zpcli rm <id>`
-- `zpcli validate`
-- `zpcli health`
+- `zpcli site add <domain>`
+- `zpcli site add <seriesId> <domain>`
+- `zpcli site ls`
+- `zpcli site rm <id>`
+- `zpcli site validate`
+- `zpcli site health`
+- `zpcli doctor`
+
+All major CLI commands now support:
+
+- `zpcli --json ...`
 
 ### Search and Detail
 
@@ -79,4 +84,5 @@ For tool details, see [`/Users/cat/zpcli/docs/MCP_CONTRACT.md`](/Users/cat/zpcli
 ## Notes
 
 - The project is being refactored toward shared services so CLI and MCP use the same core logic.
+- Config saves now use atomic write semantics to reduce the chance of partial file corruption.
 - `go test` and `gofmt` are expected project workflows, but availability depends on the local shell environment.

@@ -186,6 +186,10 @@ Acceptance criteria:
 Objective:
 Make local state reliable enough for long-term use and automation.
 
+Progress notes:
+
+- 2026-03-24: added config version normalization, save-time validation, and atomic temp-file writes
+
 Tasks:
 
 - Add a formal config schema version.
@@ -229,6 +233,7 @@ Make the project diagnosable and manageable in real use.
 Progress notes:
 
 - 2026-03-23: added CLI `health` and `validate` commands backed by a shared health service
+- 2026-03-24: added CLI `doctor` command for local environment and config diagnostics
 
 Tasks:
 
@@ -260,6 +265,10 @@ Acceptance criteria:
 Objective:
 Make the tool pleasant and predictable for both shell users and OpenClaw.
 
+Progress notes:
+
+- 2026-03-24: added global `--json` output mode across major CLI commands
+
 Tasks:
 
 - Improve command help text and examples.
@@ -289,6 +298,10 @@ Acceptance criteria:
 Objective:
 Build confidence so changes can be made without fear.
 
+Progress notes:
+
+- 2026-03-24: added initial store tests covering duplicate validation, atomic save cleanup, and legacy load normalization
+
 Tasks:
 
 - Add unit tests for domain and service logic.
@@ -317,6 +330,10 @@ Acceptance criteria:
 
 Objective:
 Make the project safe to adopt as a dependency in OpenClaw workflows.
+
+Progress notes:
+
+- 2026-03-24: added changelog, release checklist, and OpenClaw integration notes
 
 Tasks:
 

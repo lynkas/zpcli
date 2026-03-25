@@ -41,6 +41,12 @@
 
 - [`/Users/cat/zpcli/store/store.go`](/Users/cat/zpcli/store/store.go)
 
+Current storage protections:
+
+- version normalization on load
+- basic config validation before save
+- atomic temp-file write and rename on save
+
 ## Design Direction
 
 The project is moving toward:
@@ -77,7 +83,6 @@ The project is moving toward:
 ## Known Gaps
 
 - no structured `--json` output yet
-- no atomic config write yet
 - no migration framework beyond version field
 - MCP still returns text content rather than structured objects
 - no automated tests beyond endpoint normalization

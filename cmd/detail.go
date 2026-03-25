@@ -15,6 +15,36 @@ var detailCmd = &cobra.Command{
 	Use:     "detail [siteId] [vodId]",
 	Aliases: []string{"d"},
 	Short:   "Show details of a specific video (alias: d)",
+	Long: `Fetch detailed metadata for a video from a configured site.
+
+Supported forms:
+  1. ` + "`zpcli detail <siteId> <vodId>`" + `
+     Required:
+       - ` + "`siteId`" + ` such as ` + "`1.1`" + `
+       - ` + "`vodId`" + `
+     Optional:
+       - ` + "`--all`" + `
+       - ` + "`--json`" + `
+     Behavior:
+       - fetches and prints video metadata and episode information
+
+  2. ` + "`zpcli <siteId> <vodId> [episode]`" + `
+     Required:
+       - ` + "`siteId`" + `
+       - ` + "`vodId`" + `
+     Optional:
+       - ` + "`episode`" + `
+       - ` + "`--all`" + `
+       - ` + "`--json`" + `
+     Behavior:
+       - acts as a shortcut to the detail workflow
+       - if ` + "`episode`" + ` is provided, returns the matching episode URL when available
+
+Parameters:
+  - ` + "`siteId`" + `: required; a configured site ID like ` + "`1.1`" + `
+  - ` + "`vodId`" + `: required; the video ID on that site
+  - ` + "`episode`" + `: optional in shortcut form only`,
+	Example: ``,
 	Args:    cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		ShowDetail(os.Stdout, detailShowAll, args...)
@@ -78,8 +108,8 @@ func ShowDetail(w io.Writer, showAll bool, args ...string) {
 	if targetEp != "" {
 		if outputJSON {
 			if episodeURL, ok := service.FindEpisodeURL(v, targetEp); ok {
-			writeJSON(w, map[string]interface{}{
-				"status":      "ok",
+				writeJSON(w, map[string]interface{}{
+					"status":      "ok",
 					"site_id":     siteIDStr,
 					"vod_id":      vodIDStr,
 					"episode":     targetEp,

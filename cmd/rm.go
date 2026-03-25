@@ -12,7 +12,27 @@ import (
 var removeCmd = &cobra.Command{
 	Use:   "rm [id]",
 	Short: "Remove a series or a single domain",
-	Args:  cobra.ExactArgs(1),
+	Long: `Remove a configured site entry.
+
+Supported forms:
+  1. ` + "`zpcli site rm <seriesId>`" + `
+     Required:
+       - ` + "`seriesId`" + `
+     Optional:
+       - none
+     Behavior:
+       - removes the entire series and all domains inside it
+
+  2. ` + "`zpcli site rm <seriesId.domainId>`" + `
+     Required:
+       - a combined ID such as ` + "`1.2`" + `
+     Optional:
+       - none
+     Behavior:
+       - removes one domain from a series
+       - if that was the last domain, the series is removed as well`,
+	Example: ``,
+	Args:    cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		if err := RemoveSite(args[0]); err != nil {
 			if outputJSON {
@@ -23,6 +43,14 @@ var removeCmd = &cobra.Command{
 			return
 		}
 	},
+}
+
+var legacyRemoveCmd = &cobra.Command{
+	Use:    removeCmd.Use,
+	Short:  removeCmd.Short,
+	Args:   removeCmd.Args,
+	Hidden: true,
+	Run:    removeCmd.Run,
 }
 
 func RemoveSite(id string) error {
@@ -45,5 +73,6 @@ func RemoveSite(id string) error {
 }
 
 func init() {
-	rootCmd.AddCommand(removeCmd)
+	siteCmd.AddCommand(removeCmd)
+	rootCmd.AddCommand(legacyRemoveCmd)
 }

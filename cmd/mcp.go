@@ -80,7 +80,7 @@ func searchToolSchema() map[string]interface{} {
 		"properties": map[string]interface{}{
 			"keyword": map[string]interface{}{
 				"type":        "string",
-				"description": "The keyword to search for",
+				"description": "Required. One or more words to search for across configured sites.",
 			},
 		},
 		"required": []string{"keyword"},
@@ -93,15 +93,15 @@ func detailToolSchema() map[string]interface{} {
 		"properties": map[string]interface{}{
 			"site_id": map[string]interface{}{
 				"type":        "string",
-				"description": "The site ID (e.g. 2.1)",
+				"description": "Required. Configured site ID, such as 1.1.",
 			},
 			"vod_id": map[string]interface{}{
 				"type":        "string",
-				"description": "The video ID",
+				"description": "Required. Video ID on the selected site.",
 			},
 			"episode": map[string]interface{}{
 				"type":        "string",
-				"description": "Optional specific episode to get link for",
+				"description": "Optional. When provided, return the matching episode URL instead of full detail text.",
 			},
 		},
 		"required": []string{"site_id", "vod_id"},
@@ -121,11 +121,11 @@ func addSiteToolSchema() map[string]interface{} {
 		"properties": map[string]interface{}{
 			"domain": map[string]interface{}{
 				"type":        "string",
-				"description": "The domain URL to add",
+				"description": "Required. Bare host or full endpoint URL to add.",
 			},
 			"series_id": map[string]interface{}{
 				"type":        "string",
-				"description": "Optional series ID to add the domain to. If omitted, creates a new series.",
+				"description": "Optional. Existing series ID to append to. If omitted, a new series is created.",
 			},
 		},
 		"required": []string{"domain"},
@@ -138,7 +138,7 @@ func removeSiteToolSchema() map[string]interface{} {
 		"properties": map[string]interface{}{
 			"id": map[string]interface{}{
 				"type":        "string",
-				"description": "The ID to remove (e.g., '1.1' for a domain or '1' for a series)",
+				"description": "Required. Series ID like '1' or domain ID like '1.1'.",
 			},
 		},
 		"required": []string{"id"},
@@ -148,6 +148,25 @@ func removeSiteToolSchema() map[string]interface{} {
 var mcpCmd = &cobra.Command{
 	Use:   "mcp",
 	Short: "Start the MCP server to provide video CMS tools to LLMs",
+	Long: `Start the MCP server.
+
+Supported forms:
+  1. ` + "`zpcli mcp`" + `
+     Required:
+       - no positional arguments
+     Optional:
+       - none
+     Behavior:
+       - starts the MCP server over stdio
+
+  2. ` + "`zpcli mcp --port <port>`" + `
+     Required:
+       - no positional arguments
+     Optional:
+       - ` + "`--port`" + `
+     Behavior:
+       - starts the MCP server as an SSE / HTTP service on the given port`,
+	Example: ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		if mcpPort > 0 {
 			serveSSE(mcpPort)
@@ -276,47 +295,47 @@ func handleRequest(w io.Writer, req JSONRPCRequest) {
 			Tools: []Tool{
 				{
 					Name:        "search",
-					Description: "Search for videos across configured sites",
+					Description: "Legacy alias. Search videos across configured sites. Required input: keyword.",
 					InputSchema: searchToolSchema(),
 				},
 				{
 					Name:        "search_videos",
-					Description: "Stable alias for searching videos across configured sites",
+					Description: "Search videos across configured sites. Required input: keyword.",
 					InputSchema: searchToolSchema(),
 				},
 				{
 					Name:        "get_detail",
-					Description: "Get details of a specific video",
+					Description: "Legacy alias. Get video detail. Required: site_id, vod_id. Optional: episode.",
 					InputSchema: detailToolSchema(),
 				},
 				{
 					Name:        "get_video_detail",
-					Description: "Stable alias for getting details of a specific video",
+					Description: "Get video detail. Required: site_id, vod_id. Optional: episode.",
 					InputSchema: detailToolSchema(),
 				},
 				{
 					Name:        "list_sites",
-					Description: "List all configured sites and their IDs",
+					Description: "List all configured series, domain IDs, URLs, and failure counts. No input required.",
 					InputSchema: listSitesToolSchema(),
 				},
 				{
 					Name:        "add_site",
-					Description: "Add a new site domain. Can create a new series or add to existing.",
+					Description: "Add a site domain. Required: domain. Optional: series_id. Without series_id, creates a new series.",
 					InputSchema: addSiteToolSchema(),
 				},
 				{
 					Name:        "remove_site",
-					Description: "Remove a site or an entire series",
+					Description: "Remove a series or one domain. Required: id, using '1' for a series or '1.1' for a domain.",
 					InputSchema: removeSiteToolSchema(),
 				},
 				{
 					Name:        "validate_sites",
-					Description: "Validate the configured sites and report configuration issues",
+					Description: "Validate the current site configuration and report issues. No input required.",
 					InputSchema: listSitesToolSchema(),
 				},
 				{
 					Name:        "health_check",
-					Description: "Return a health summary for the current configuration",
+					Description: "Return config health totals, warnings, errors, and config path information. No input required.",
 					InputSchema: listSitesToolSchema(),
 				},
 			},

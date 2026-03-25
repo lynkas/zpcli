@@ -9,6 +9,8 @@ import (
 	"strings"
 )
 
+const CurrentVersion = 1
+
 type Domain struct {
 	URL          string `json:"url"`
 	FailureScore int    `json:"failure_score"`
@@ -49,6 +51,7 @@ func ConfigFilePath() (string, error) {
 
 func Load() (*StoreData, error) {
 	data := &StoreData{
+		Version: CurrentVersion,
 		Series: make([]*Series, 0),
 	}
 
@@ -86,19 +89,20 @@ func Load() (*StoreData, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	if data.Series == nil {
-		data.Series = make([]*Series, 0)
+	if err := normalizeStoreData(data); err != nil {
+		return nil, err
 	}
-
-	if data.Version == 0 {
-		data.Version = 1
-	}
-
 	return data, nil
 }
 
 func (s *StoreData) Save() error {
+	if err := normalizeStoreData(s); err != nil {
+		return err
+	}
+	if err := validateStoreData(s); err != nil {
+		return err
+	}
+
 	dataFile, err := getConfigFile()
 	if err != nil {
 		return err
@@ -108,7 +112,42 @@ func (s *StoreData) Save() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(dataFile, bytes, 0644)
+
+	dir := filepath.Dir(dataFile)
+	tempFile, err := os.CreateTemp(dir, "sites-*.json.tmp")
+	if err != nil {
+		return err
+	}
+
+	tempPath := tempFile.Name()
+	cleanupTemp := true
+	defer func() {
+		if cleanupTemp {
+			os.Remove(tempPath)
+		}
+	}()
+
+	if _, err := tempFile.Write(bytes); err != nil {
+		tempFile.Close()
+		return err
+	}
+	if err := tempFile.Sync(); err != nil {
+		tempFile.Close()
+		return err
+	}
+	if err := tempFile.Chmod(0644); err != nil {
+		tempFile.Close()
+		return err
+	}
+	if err := tempFile.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tempPath, dataFile); err != nil {
+		return err
+	}
+
+	cleanupTemp = false
+	return nil
 }
 
 func (s *StoreData) CreateSeries(url string) error {
@@ -180,4 +219,56 @@ func (s *StoreData) RemoveSeries(seriesIndex int) error {
 	}
 	s.Series = append(s.Series[:seriesIndex], s.Series[seriesIndex+1:]...)
 	return s.Save()
+}
+
+func normalizeStoreData(data *StoreData) error {
+	if data == nil {
+		return fmt.Errorf("store data is nil")
+	}
+	if data.Version == 0 {
+		data.Version = CurrentVersion
+	}
+	if data.Version > CurrentVersion {
+		return fmt.Errorf("unsupported config version %d", data.Version)
+	}
+	if data.Series == nil {
+		data.Series = make([]*Series, 0)
+	}
+	for i, series := range data.Series {
+		if series == nil {
+			data.Series[i] = &Series{Domains: make([]*Domain, 0)}
+			continue
+		}
+		if series.Domains == nil {
+			series.Domains = make([]*Domain, 0)
+		}
+	}
+	return nil
+}
+
+func validateStoreData(data *StoreData) error {
+	if data == nil {
+		return fmt.Errorf("store data is nil")
+	}
+
+	seen := make(map[string]string)
+	for i, series := range data.Series {
+		if series == nil {
+			return fmt.Errorf("series %d is nil", i+1)
+		}
+		for j, dom := range series.Domains {
+			if dom == nil {
+				return fmt.Errorf("domain %d.%d is nil", i+1, j+1)
+			}
+			url := strings.TrimSpace(dom.URL)
+			if url == "" {
+				return fmt.Errorf("domain %d.%d has an empty URL", i+1, j+1)
+			}
+			if previous, exists := seen[url]; exists {
+				return fmt.Errorf("domain %d.%d duplicates %s", i+1, j+1, previous)
+			}
+			seen[url] = fmt.Sprintf("%d.%d", i+1, j+1)
+		}
+	}
+	return nil
 }

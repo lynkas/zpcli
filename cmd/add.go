@@ -12,7 +12,31 @@ import (
 var addCmd = &cobra.Command{
 	Use:   "add [domain] OR add [seriesId] [domain]",
 	Short: "Create a series, add a domain to a series, or add an endpoint",
-	Args:  cobra.MaximumNArgs(2),
+	Long: `Add a new site configuration.
+
+Supported forms:
+  1. ` + "`zpcli site add <domain>`" + `
+     Required:
+       - ` + "`domain`" + `
+     Optional:
+       - none
+     Behavior:
+       - creates a new series and puts the domain into that new series
+
+  2. ` + "`zpcli site add <seriesId> <domain>`" + `
+     Required:
+       - ` + "`seriesId`" + `: target series number, such as ` + "`1`" + `
+       - ` + "`domain`" + `
+     Optional:
+       - none
+     Behavior:
+       - appends the domain to an existing series
+
+Parameter details:
+  - ` + "`domain`" + ` may be a bare host like ` + "`example.com`" + ` or a full endpoint URL
+  - ` + "`seriesId`" + ` must refer to an existing series`,
+	Example: ``,
+	Args:    cobra.MaximumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 {
 			cmd.Help()
@@ -27,6 +51,14 @@ var addCmd = &cobra.Command{
 			return
 		}
 	},
+}
+
+var legacyAddCmd = &cobra.Command{
+	Use:    addCmd.Use,
+	Short:  addCmd.Short,
+	Args:   addCmd.Args,
+	Hidden: true,
+	Run:    addCmd.Run,
 }
 
 func AddSite(args ...string) error {
@@ -49,5 +81,6 @@ func AddSite(args ...string) error {
 }
 
 func init() {
-	rootCmd.AddCommand(addCmd)
+	siteCmd.AddCommand(addCmd)
+	rootCmd.AddCommand(legacyAddCmd)
 }

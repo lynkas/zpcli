@@ -53,6 +53,28 @@ var searchCmd = &cobra.Command{
 	Use:     "search [keyword]",
 	Aliases: []string{"s"},
 	Short:   "Search content across top configured domains (alias: s)",
+	Long: `Search videos across configured sites.
+
+Supported forms:
+  1. ` + "`zpcli search <keyword>`" + `
+     Required:
+       - ` + "`keyword`" + `
+     Optional:
+       - ` + "`--series <n>`" + `
+       - ` + "`--page <n>`" + `
+       - ` + "`--sort <time|overlap>`" + `
+       - ` + "`--json`" + `
+
+Parameters:
+  - ` + "`keyword`" + `: required; one or more words to search for
+  - ` + "`--series`" + `: optional; how many series to search concurrently
+  - ` + "`--page`" + `: optional; result page number
+  - ` + "`--sort`" + `: optional; ` + "`time`" + ` or ` + "`overlap`" + `
+
+Behavior:
+  - searches configured sites using the given keyword
+  - returns text output by default, or JSON when ` + "`--json`" + ` is set`,
+	Example: ``,
 	Args:    cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		ShowSearch(os.Stdout, strings.Join(args, " "), searchSeriesCount, searchPage, searchSortBy)

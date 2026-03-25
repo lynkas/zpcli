@@ -13,9 +13,32 @@ import (
 var listCmd = &cobra.Command{
 	Use:   "ls",
 	Short: "List all domains and endpoints",
+	Long: `List all configured series, domains, and endpoint failure counts.
+
+Supported forms:
+  1. ` + "`zpcli site ls`" + `
+     Required:
+       - no positional arguments
+     Optional:
+       - ` + "`--json`" + `
+     Behavior:
+       - prints every series, every domain ID, and failure counts
+
+Output:
+  - text mode shows ` + "`Series N`" + ` sections and domain IDs like ` + "`1.2`" + `
+  - JSON mode returns a structured site list`,
+	Example: ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		ShowList(os.Stdout)
 	},
+}
+
+var legacyListCmd = &cobra.Command{
+	Use:    listCmd.Use,
+	Short:  listCmd.Short,
+	Args:   listCmd.Args,
+	Hidden: true,
+	Run:    listCmd.Run,
 }
 
 func ShowList(w io.Writer) {
@@ -60,5 +83,6 @@ func ShowList(w io.Writer) {
 }
 
 func init() {
-	rootCmd.AddCommand(listCmd)
+	siteCmd.AddCommand(listCmd)
+	rootCmd.AddCommand(legacyListCmd)
 }

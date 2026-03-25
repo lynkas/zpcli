@@ -12,9 +12,28 @@ import (
 var healthCmd = &cobra.Command{
 	Use:   "health",
 	Short: "Show health information for the current configuration",
+	Long: `Summarize config health, including series count, domain count, warnings, and errors.
+
+Supported forms:
+  1. ` + "`zpcli site health`" + `
+     Required:
+       - no positional arguments
+     Optional:
+       - ` + "`--json`" + `
+     Behavior:
+       - prints config path, version, totals, warnings, and errors`,
+	Example: ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		showHealth()
 	},
+}
+
+var legacyHealthCmd = &cobra.Command{
+	Use:    healthCmd.Use,
+	Short:  healthCmd.Short,
+	Args:   healthCmd.Args,
+	Hidden: true,
+	Run:    healthCmd.Run,
 }
 
 func showHealth() {
@@ -68,5 +87,6 @@ func showHealth() {
 
 func init() {
 	healthCmd.SetOut(os.Stdout)
-	rootCmd.AddCommand(healthCmd)
+	siteCmd.AddCommand(healthCmd)
+	rootCmd.AddCommand(legacyHealthCmd)
 }

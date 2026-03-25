@@ -15,7 +15,6 @@ import (
 func writeSearchResults(w io.Writer, data *store.StoreData, results []domain.SearchResult, sortBy string) {
 	type row struct {
 		domainID string
-		score    string
 		vodID    string
 		typeName string
 		vodName  string
@@ -27,7 +26,6 @@ func writeSearchResults(w io.Writer, data *store.StoreData, results []domain.Sea
 	var rows []row
 	headers := row{
 		domainID: "DOMAIN",
-		score:    "SCORE",
 		vodID:    "ID",
 		typeName: "TYPE",
 		vodTime:  "TIME",
@@ -36,7 +34,6 @@ func writeSearchResults(w io.Writer, data *store.StoreData, results []domain.Sea
 	}
 
 	maxDomainIDWidth := runewidth.StringWidth(headers.domainID)
-	maxScoreWidth := runewidth.StringWidth(headers.score)
 	maxVodIDWidth := runewidth.StringWidth(headers.vodID)
 	maxTypeNameWidth := runewidth.StringWidth(headers.typeName)
 	maxTimeWidth := runewidth.StringWidth(headers.vodTime)
@@ -45,16 +42,12 @@ func writeSearchResults(w io.Writer, data *store.StoreData, results []domain.Sea
 
 	for _, res := range results {
 		domainID := fmt.Sprintf("%d.%d", res.SeriesIndex+1, res.DomainIndex+1)
-		score := fmt.Sprintf("%d", data.Series[res.SeriesIndex].Domains[res.DomainIndex].FailureScore)
 		if res.Err != nil || len(res.Items) == 0 {
 			continue
 		}
 
 		if width := runewidth.StringWidth(domainID); width > maxDomainIDWidth {
 			maxDomainIDWidth = width
-		}
-		if width := runewidth.StringWidth(score); width > maxScoreWidth {
-			maxScoreWidth = width
 		}
 
 		for _, item := range res.Items {
@@ -75,7 +68,6 @@ func writeSearchResults(w io.Writer, data *store.StoreData, results []domain.Sea
 
 			rows = append(rows, row{
 				domainID: domainID,
-				score:    score,
 				vodID:    vID,
 				typeName: item.TypeName,
 				vodName:  item.VodName,
@@ -105,15 +97,13 @@ func writeSearchResults(w io.Writer, data *store.StoreData, results []domain.Sea
 
 	printRow := func(r row) {
 		dPad := strings.Repeat(" ", maxDomainIDWidth-runewidth.StringWidth(r.domainID))
-		sPad := strings.Repeat(" ", maxScoreWidth-runewidth.StringWidth(r.score))
 		vPad := strings.Repeat(" ", maxVodIDWidth-runewidth.StringWidth(r.vodID))
 		tPad := strings.Repeat(" ", maxTypeNameWidth-runewidth.StringWidth(r.typeName))
 		tmPad := strings.Repeat(" ", maxTimeWidth-runewidth.StringWidth(r.vodTime))
 		titlePad := strings.Repeat(" ", maxTitleWidth-runewidth.StringWidth(r.vodName))
 
-		fmt.Fprintf(w, "%s%s   %s%s   %s%s   %s%s   %s%s   %s%s   %s\n",
+		fmt.Fprintf(w, "%s%s   %s%s   %s%s   %s%s   %s%s   %s\n",
 			r.domainID, dPad,
-			r.score, sPad,
 			r.vodID, vPad,
 			r.typeName, tPad,
 			r.vodTime, tmPad,
