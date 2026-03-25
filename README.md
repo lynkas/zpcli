@@ -39,6 +39,10 @@ All major CLI commands now support:
 
 ## Build
 
+Minimum Go version:
+
+- Go `1.21` or newer
+
 Local development build:
 
 - `make build`

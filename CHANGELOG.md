@@ -24,6 +24,7 @@ All notable changes to `zpcli` should be documented in this file.
 - MCP documentation now focuses on stable tool names and includes detailed input/output guidance
 - Search result rendering no longer shows the `score` column
 - CLI and MCP now rely on shared service logic instead of command-only implementations
+- Minimum supported Go version is now `1.21`
 
 ### Removed
 
