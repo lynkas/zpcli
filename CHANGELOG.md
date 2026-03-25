@@ -4,6 +4,18 @@ All notable changes to `zpcli` should be documented in this file.
 
 ## Unreleased
 
+## v0.1.2
+
+### Added
+
+- MCP `search_videos` now accepts an optional `page` argument for paginated search
+- MCP search guidance now tells clients to try later pages with the same keyword before rewriting the query
+
+### Changed
+
+- MCP tool descriptions and contract docs now explicitly discourage expanding a short core keyword with extra surrounding words
+- MCP initialize responses now report the build version instead of a hardcoded server version
+
 ## v0.1.1
 
 ### Fixed

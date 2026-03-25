@@ -35,22 +35,26 @@ Purpose:
 
 Required input:
 
-- `keyword` (`string`): one or more words to search for
+- `keyword` (`string`): search keyword
 
 Optional input:
 
-- none
+- `page` (`integer`): result page number, starting at `1`
 
 Behavior:
 
 - searches the configured sites using the provided keyword
+- supports paging through search results
+- when page `1` does not contain the expected result, clients should try later pages with the same keyword before changing the query
+- clients should not expand a short core keyword with extra surrounding words, because a longer variant usually will not help when the short one already fails
 - returns text output in the current implementation
 
 Input:
 
 ```json
 {
-  "keyword": "keyword"
+  "keyword": "keyword",
+  "page": 2
 }
 ```
 
@@ -69,7 +73,8 @@ Example call:
 
 ```json
 {
-  "keyword": "movie"
+  "keyword": "movie",
+  "page": 2
 }
 ```
 

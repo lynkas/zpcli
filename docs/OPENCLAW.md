@@ -39,4 +39,6 @@ Recommended when running the tool as a long-lived service:
 
 - call `health_check` before relying on the tool in a long-running workflow
 - call `validate_sites` after mutating site configuration
+- when `search_videos` page 1 does not contain the expected result, retry with later pages and keep the same keyword
+- do not expand a short core search keyword with extra surrounding words
 - prefer CLI `--json` for shell automation outside MCP

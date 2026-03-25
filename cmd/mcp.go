@@ -9,8 +9,11 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"sync"
 	"time"
+	"zpcli/internal/buildinfo"
+	"zpcli/internal/domain"
 	"zpcli/internal/logx"
 	"zpcli/internal/service"
 	"zpcli/store"
@@ -20,6 +23,13 @@ import (
 
 var (
 	mcpPort int
+)
+
+var (
+	mcpLoadStore    = store.Load
+	mcpSearchVideos = func(ctx context.Context, data *store.StoreData, keyword string, page int) ([]domain.SearchResult, error) {
+		return service.NewSearchService(nil).Search(ctx, data, keyword, 3, page)
+	}
 )
 
 // JSON-RPC types
@@ -81,11 +91,52 @@ func searchToolSchema() map[string]interface{} {
 		"properties": map[string]interface{}{
 			"keyword": map[string]interface{}{
 				"type":        "string",
-				"description": "Required. One or more words to search for across configured sites.",
+				"description": "Required. Search keyword. Keep the core keyword unchanged when paging; if a short keyword finds nothing, adding extra surrounding words usually will not help.",
+			},
+			"page": map[string]interface{}{
+				"type":        "integer",
+				"description": "Optional. Result page number, starting at 1. If page 1 does not contain the expected result, try later pages with the same keyword before changing the query.",
+				"minimum":     1,
 			},
 		},
 		"required": []string{"keyword"},
 	}
+}
+
+func parsePositiveIntArgument(args map[string]interface{}, key string, defaultValue int) int {
+	raw, ok := args[key]
+	if !ok || raw == nil {
+		return defaultValue
+	}
+
+	switch v := raw.(type) {
+	case float64:
+		if v >= 1 && float64(int(v)) == v {
+			return int(v)
+		}
+	case int:
+		if v >= 1 {
+			return v
+		}
+	case int32:
+		if v >= 1 {
+			return int(v)
+		}
+	case int64:
+		if v >= 1 {
+			return int(v)
+		}
+	case json.Number:
+		if parsed, err := strconv.Atoi(v.String()); err == nil && parsed >= 1 {
+			return parsed
+		}
+	case string:
+		if parsed, err := strconv.Atoi(v); err == nil && parsed >= 1 {
+			return parsed
+		}
+	}
+
+	return defaultValue
 }
 
 func detailToolSchema() map[string]interface{} {
@@ -298,7 +349,7 @@ func handleRequest(w io.Writer, req JSONRPCRequest) {
 			},
 			ServerInfo: ServerInfo{
 				Name:    "zpcli",
-				Version: "1.0.0",
+				Version: buildinfo.Version,
 			},
 		})
 	case "notifications/initialized":
@@ -308,7 +359,7 @@ func handleRequest(w io.Writer, req JSONRPCRequest) {
 			Tools: []Tool{
 				{
 					Name:        "search_videos",
-					Description: "Search videos across configured sites. Required input: keyword.",
+					Description: "Search videos across configured sites. Required: keyword. Optional: page. If page 1 misses the expected result, try later pages with the same keyword before changing the query. Do not expand a short core keyword with extra words.",
 					InputSchema: searchToolSchema(),
 				},
 				{
@@ -376,14 +427,14 @@ func handleToolCall(w io.Writer, req JSONRPCRequest) {
 	switch params.Name {
 	case "search_videos":
 		keyword, _ := params.Arguments["keyword"].(string)
-		data, err := store.Load()
+		page := parsePositiveIntArgument(params.Arguments, "page", 1)
+		data, err := mcpLoadStore()
 		if err != nil {
 			result.IsError = true
 			result.Content = append(result.Content, Content{Type: "text", Text: fmt.Sprintf("Error loading store: %v", err)})
 			break
 		}
-		searchService := service.NewSearchService(nil)
-		searchResults, err := searchService.Search(context.Background(), data, keyword, 3, 1)
+		searchResults, err := mcpSearchVideos(context.Background(), data, keyword, page)
 		if err != nil {
 			result.IsError = true
 			result.Content = append(result.Content, Content{Type: "text", Text: fmt.Sprintf("Error: %v", err)})
@@ -404,7 +455,11 @@ func handleToolCall(w io.Writer, req JSONRPCRequest) {
 			data.Save()
 		}
 		writeSearchResults(&buf, data, searchResults, "time")
-		result.Content = append(result.Content, Content{Type: "text", Text: buf.String()})
+		searchText := buf.String()
+		if searchText == "No results found.\n" {
+			searchText = fmt.Sprintf("No results found on page %d.\nTry the next page with the same keyword before changing the query.\nDo not expand a short core keyword with extra surrounding words.\n", page)
+		}
+		result.Content = append(result.Content, Content{Type: "text", Text: searchText})
 	case "get_video_detail":
 		data, err := store.Load()
 		if err != nil {

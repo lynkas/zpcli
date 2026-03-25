@@ -1,4 +1,18 @@
+
+## 找个片看吗？找个片看吧！澳门首家片站上线啦！
+
 # ZPCLI
+
+## 你需要：
+
+- 找到能用的采集站api的域名
+- 配置采集站链接
+- 开始搜索
+- 点击返回的m3u8并观看
+
+## 你甚至可以
+
+- 跑一个mcp服务器，让agent帮你搜。
 
 `zpcli` is a CLI-first video CMS query tool with MCP support for AI clients such as OpenClaw.
 
@@ -111,5 +125,8 @@ For tool details, see [`/Users/cat/zpcli/docs/MCP_CONTRACT.md`](/Users/cat/zpcli
 ## Notes
 
 - The project is being refactored toward shared services so CLI and MCP use the same core logic.
+- MCP `search_videos` supports paging with an optional `page` argument.
+- For MCP clients, if page 1 misses an expected result, try later pages with the same keyword before changing the query.
+- For MCP clients, do not expand a short core keyword with extra words when searching.
 - Config saves now use atomic write semantics to reduce the chance of partial file corruption.
 - `go test` and `gofmt` are expected project workflows, but availability depends on the local shell environment.
