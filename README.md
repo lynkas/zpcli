@@ -130,3 +130,7 @@ For tool details, see [`/Users/cat/zpcli/docs/MCP_CONTRACT.md`](/Users/cat/zpcli
 - For MCP clients, do not expand a short core keyword with extra words when searching.
 - Config saves now use atomic write semantics to reduce the chance of partial file corruption.
 - `go test` and `gofmt` are expected project workflows, but availability depends on the local shell environment.
+
+## License
+
+This project is dedicated to the public domain under CC0 1.0. See [`/Users/cat/zpcli/LICENSE`](/Users/cat/zpcli/LICENSE).
