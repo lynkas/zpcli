@@ -28,14 +28,6 @@ Supported forms:
 	},
 }
 
-var legacyHealthCmd = &cobra.Command{
-	Use:    healthCmd.Use,
-	Short:  healthCmd.Short,
-	Args:   healthCmd.Args,
-	Hidden: true,
-	Run:    healthCmd.Run,
-}
-
 func showHealth() {
 	data, err := store.Load()
 	if err != nil {
@@ -88,5 +80,4 @@ func showHealth() {
 func init() {
 	healthCmd.SetOut(os.Stdout)
 	siteCmd.AddCommand(healthCmd)
-	rootCmd.AddCommand(legacyHealthCmd)
 }

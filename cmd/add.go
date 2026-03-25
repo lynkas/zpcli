@@ -53,14 +53,6 @@ Parameter details:
 	},
 }
 
-var legacyAddCmd = &cobra.Command{
-	Use:    addCmd.Use,
-	Short:  addCmd.Short,
-	Args:   addCmd.Args,
-	Hidden: true,
-	Run:    addCmd.Run,
-}
-
 func AddSite(args ...string) error {
 	s, err := store.Load()
 	if err != nil {
@@ -82,5 +74,4 @@ func AddSite(args ...string) error {
 
 func init() {
 	siteCmd.AddCommand(addCmd)
-	rootCmd.AddCommand(legacyAddCmd)
 }

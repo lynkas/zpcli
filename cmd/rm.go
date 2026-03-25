@@ -45,14 +45,6 @@ Supported forms:
 	},
 }
 
-var legacyRemoveCmd = &cobra.Command{
-	Use:    removeCmd.Use,
-	Short:  removeCmd.Short,
-	Args:   removeCmd.Args,
-	Hidden: true,
-	Run:    removeCmd.Run,
-}
-
 func RemoveSite(id string) error {
 	s, err := store.Load()
 	if err != nil {
@@ -74,5 +66,4 @@ func RemoveSite(id string) error {
 
 func init() {
 	siteCmd.AddCommand(removeCmd)
-	rootCmd.AddCommand(legacyRemoveCmd)
 }

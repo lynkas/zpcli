@@ -29,6 +29,5 @@ The following should be treated as breaking:
 
 ## Upgrade Notes
 
-- prefer stable MCP tool names such as `search_videos` and `get_video_detail`
-- keep legacy aliases only for backward compatibility
+- use MCP tool names such as `search_videos` and `get_video_detail`
 - document config migration changes before release

@@ -289,24 +289,14 @@ func handleRequest(w io.Writer, req JSONRPCRequest) {
 			},
 		})
 	case "notifications/initialized":
-		// No response needed for notifications
+	// No response needed for notifications
 	case "tools/list":
 		sendResponse(w, req.ID, ToolListResult{
 			Tools: []Tool{
 				{
-					Name:        "search",
-					Description: "Legacy alias. Search videos across configured sites. Required input: keyword.",
-					InputSchema: searchToolSchema(),
-				},
-				{
 					Name:        "search_videos",
 					Description: "Search videos across configured sites. Required input: keyword.",
 					InputSchema: searchToolSchema(),
-				},
-				{
-					Name:        "get_detail",
-					Description: "Legacy alias. Get video detail. Required: site_id, vod_id. Optional: episode.",
-					InputSchema: detailToolSchema(),
 				},
 				{
 					Name:        "get_video_detail",
@@ -367,7 +357,7 @@ func handleToolCall(w io.Writer, req JSONRPCRequest) {
 	siteService := service.NewSiteService()
 
 	switch params.Name {
-	case "search", "search_videos":
+	case "search_videos":
 		keyword, _ := params.Arguments["keyword"].(string)
 		data, err := store.Load()
 		if err != nil {
@@ -398,7 +388,7 @@ func handleToolCall(w io.Writer, req JSONRPCRequest) {
 		}
 		writeSearchResults(&buf, data, searchResults, "time")
 		result.Content = append(result.Content, Content{Type: "text", Text: buf.String()})
-	case "get_detail", "get_video_detail":
+	case "get_video_detail":
 		data, err := store.Load()
 		if err != nil {
 			result.IsError = true

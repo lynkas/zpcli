@@ -20,16 +20,9 @@ Preferred stable tool names:
 - `validate_sites`
 - `health_check`
 
-Backward-compatible aliases currently exposed:
-
-- `search`
-- `get_detail`
-
 Client guidance:
 
 - new MCP clients should call the stable names listed above
-- legacy aliases remain available for backward compatibility
-- when both a stable name and a legacy alias exist, they currently map to the same behavior
 - prefer documenting and testing against stable names only
 
 ## Tool Summary
@@ -52,7 +45,6 @@ Behavior:
 
 - searches the configured sites using the provided keyword
 - returns text output in the current implementation
-- stable clients should prefer `search_videos` over the legacy alias `search`
 
 Input:
 
@@ -101,7 +93,6 @@ Behavior:
 
 - when `episode` is omitted, returns the full detail text
 - when `episode` is present, returns only the matching episode URL text
-- stable clients should prefer `get_video_detail` over the legacy alias `get_detail`
 
 Input:
 

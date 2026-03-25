@@ -33,14 +33,6 @@ Output:
 	},
 }
 
-var legacyListCmd = &cobra.Command{
-	Use:    listCmd.Use,
-	Short:  listCmd.Short,
-	Args:   listCmd.Args,
-	Hidden: true,
-	Run:    listCmd.Run,
-}
-
 func ShowList(w io.Writer) {
 	s, err := store.Load()
 	if err != nil {
@@ -84,5 +76,4 @@ func ShowList(w io.Writer) {
 
 func init() {
 	siteCmd.AddCommand(listCmd)
-	rootCmd.AddCommand(legacyListCmd)
 }

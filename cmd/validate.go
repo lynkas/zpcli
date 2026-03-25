@@ -28,14 +28,6 @@ Supported forms:
 	},
 }
 
-var legacyValidateCmd = &cobra.Command{
-	Use:    validateCmd.Use,
-	Short:  validateCmd.Short,
-	Args:   validateCmd.Args,
-	Hidden: true,
-	Run:    validateCmd.Run,
-}
-
 func runValidate() {
 	data, err := store.Load()
 	if err != nil {
@@ -74,5 +66,4 @@ func runValidate() {
 func init() {
 	validateCmd.SetOut(os.Stdout)
 	siteCmd.AddCommand(validateCmd)
-	rootCmd.AddCommand(legacyValidateCmd)
 }
