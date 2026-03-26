@@ -133,4 +133,4 @@ For tool details, see [`/Users/cat/zpcli/docs/MCP_CONTRACT.md`](/Users/cat/zpcli
 
 ## License
 
-This project is dedicated to the public domain under CC0 1.0. See [`/Users/cat/zpcli/LICENSE`](/Users/cat/zpcli/LICENSE).
+This project is dedicated to the public domain under CC0 1.0. See LICENSE.
